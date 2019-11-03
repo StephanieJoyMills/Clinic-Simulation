@@ -2,35 +2,69 @@ import random
 import simpy
 from functools import partial, wraps
 
-RANDOM_SEED = 720
-IAT_MIN = 8
-IAT_MAX = 16
-CLERK_SERVICE_TIME_MIN = 12
-CLERK_SERVICE_TIME_MAX = 28
-CACHIER_SERVICE_TIME_MIN = 1
-CACHIER_SERVICE_TIME_MAX = 11
-SIM_TIME = 7200
+# Define our probabilities
+CLINIC_OPERATION = 12 * 7 
+# Define our tracking vars
 global workers_arrived
 workers_arrived = 0
-
 global workers_served
 workers_served = 0
-
 global all_busy
 all_busy = False
-
 global wait
 wait = [[0] * 1000, [0] * 1000, [0] * 1000]
-
 global worker_wait
 worker_wait = [0] * 1000
-
 global cachier_wait
 cachier_wait = 0
-
 global cachier_worker_wait
 cachier_worker_wait = [0] * 1000
 
+class Patient(object):
+    def __init__(self, env, id, priority, purpose):
+        self.id = id
+        self.priority = priority
+        self.purpose = 0
+        self.probBulking = 0
+        self.propReneging = 0
+        self.env = env
+
+# priority resource
+class Registration(object):
+    def __init__(self, env, id, priority):
+        self.id = id
+        self.priority = priority
+        self.env = env
+        self.env = simpy.Resource(env, 1)
+
+    def service(self, patient):
+        service_time = random.randrange(3, 8)
+        yield self.env.timeout(service_time)
+        print('Registration for patient %s has started servicing %s.' % (self.id, patient))
+
+# priority resource
+class ED(object):
+    def __init__(self, env, id, priority):
+        self.id = id
+        self.priority = priority
+        self.env = env
+        self.room = simpy.resources.resource.PriorityResource(env, 4)
+
+# priority resource
+class Imaging(object):
+    def __init__(self, env, id, priority):
+        self.id = id
+        self.priority = priority
+        self.env = env
+        self.station = simpy.resources.resource.PriorityResource(env, 1)
+
+# priority resource
+class Lab(object):
+    def __init__(self, env, id, priority):
+        self.id = id
+        self.priority = priority
+        self.env = env
+        self.station = simpy.resources.resource.PriorityResource(env, 2)
 
 class Clerk(object):
     def __init__(self, env, id):
