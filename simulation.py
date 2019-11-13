@@ -2,32 +2,53 @@ import random
 import simpy
 from functools import partial, wraps
 
+RANDOM_SEED = 720
+IAT_MIN = 8
+IAT_MAX = 16
+SIM_TIME = 1997200
 # Define our probabilities
-CLINIC_OPERATION = 12 * 7 
-# Define our tracking vars
-global workers_arrived
-workers_arrived = 0
-global workers_served
-workers_served = 0
-global all_busy
-all_busy = False
-global wait
-wait = [[0] * 1000, [0] * 1000, [0] * 1000]
-global worker_wait
-worker_wait = [0] * 1000
-global cachier_wait
-cachier_wait = 0
-global cachier_worker_wait
-cachier_worker_wait = [0] * 1000
+CLINIC_OPERATION = 12 * 7
+global patients_arrived
+patients_arrived = 0
+
+shift = {}
+
+bulking = {
+    "em_ser": 0.3,
+    "em_mod": 0,
+    "img_in": 0.15,
+    "img_out": 0,
+    "lab_in": 0.1,
+    "lab_out": 0,
+}
+
+reneging = {
+    "em_ser": [90, 150],
+    "em_mod": None,
+    "img_in": [30, 90],
+    "img_out": None,
+    "lab_in": [30, 90],
+    "lab_out": None,
+}
+
+timing = {
+    "em_ser": [[1.5, 1, 1],[1.5, 1, 1],[1.5, 1, 0.5]],
+    "em_mod": [[3, 2, 2],[3, 2, 1],[3, 1, 0.5]],
+    "img_in": None,
+    "img_out": [[12, 8, 0],[10, 5, 0],[5, 2, 0]],
+    "lab_in": None,
+    "lab_out": [[16, 10, 0],[12, 0, 0],[8, 0, 0]],
+}
+
 
 class Patient(object):
-    def __init__(self, env, id, priority, purpose):
-        self.id = id
-        self.priority = priority
-        self.purpose = 0
-        self.probBulking = 0
-        self.propReneging = 0
+    def __init__(self, env, num, priority, purpose, prob_bulking, prob_reneging):
         self.env = env
+        self.id = num
+        self.priority = priority
+        self.purpose = purpose
+        self.prob_bulking = prob_bulking
+        self.prop_reneging = prob_reneging
 
 # priority resource
 class Registration(object):
@@ -40,7 +61,10 @@ class Registration(object):
     def service(self, patient):
         service_time = random.randrange(3, 8)
         yield self.env.timeout(service_time)
-        print('Registration for patient %s has started servicing %s.' % (self.id, patient))
+        print(
+            "Registration for patient %s has started servicing %s." % (self.id, patient)
+        )
+
 
 # priority resource
 class ED(object):
@@ -50,6 +74,7 @@ class ED(object):
         self.env = env
         self.room = simpy.resources.resource.PriorityResource(env, 4)
 
+
 # priority resource
 class Imaging(object):
     def __init__(self, env, id, priority):
@@ -57,6 +82,7 @@ class Imaging(object):
         self.priority = priority
         self.env = env
         self.station = simpy.resources.resource.PriorityResource(env, 1)
+
 
 # priority resource
 class Lab(object):
@@ -66,151 +92,81 @@ class Lab(object):
         self.env = env
         self.station = simpy.resources.resource.PriorityResource(env, 2)
 
-class Clerk(object):
-    def __init__(self, env, id):
-        self.id = id
-        self.env = env
-        self.clerk = simpy.Resource(env, 1)
 
-    def service(self, worker):
-        """The clerk service process. It takes a ``worker`` processes and tries
-        to service it."""
-        service_time = random.randrange(
-            CLERK_SERVICE_TIME_MIN, CLERK_SERVICE_TIME_MAX)
-        yield self.env.timeout(service_time)
-        print('Clerk %s has started servicing %s.' % (self.id, worker))
+def patient(env, patient):
+    print(patient.__dict__)
+    yield env.timeout(1)  
 
-    def __str__(self):
-        return str(self.__class__) + ": " + str(self.__dict__)
+def convert_time(time):
+    tot_hours = time / 60 / 60
+    week_hours = tot_hours % 84
+    if (week_hours < 60):
+        weekIndex = 0
+    elif (week_hours > 72):
+        weekIndex = 2
+    else:
+        weekIndex = 1
 
+    day_hours = week_hours % 12
+    if (day_hours < 4):
+        dayIndex = 0
+    elif (day_hours > 8):
+        dayIndex = 2
+    else:
+        dayIndex = 1
+    return [weekIndex, dayIndex]
 
-class Cachier(object):
-    def __init__(self, env, id):
-        self.env = env
-        self.id = id
-        self.cachier = simpy.Resource(env, 1)
-
-    def checkout(self, worker):
-        """The cachier check_out process. It takes a ``worker`` processes and tries
-        to check it out."""
-        checkout_time = random.randrange(
-            CACHIER_SERVICE_TIME_MIN, CACHIER_SERVICE_TIME_MAX)
-        yield self.env.timeout(checkout_time)
-        print("Cachier services ", worker)
-
-    def __str__(self):
-        return str(self.__class__) + ": " + str(self.__dict__)
-
-
-def worker(env, worker, clerks, cachier):
-    global all_busy
-    global workers_served
-    global cachier_wait
-    # Set all_busy to True is all clerks are busy at the same time
-    if not all_busy and len(clerks.items) == 0:
-        all_busy = True
-    name = "Worker" + str(worker)
-    # Grab an available Clerk - otherwise wait until one is available (FIFO)
-    print('%s arrives at the store at %.2f.' % (name, env.now))
-    worker_wait[worker] = env.now
-    clerk = yield clerks.get()
-    start = env.now
-
-    with clerk.clerk.request() as request:
-        yield request
-        worker_wait[worker] = env.now - worker_wait[worker]
-        clerk_waiting_time[clerk.id] = clerk_waiting_time[clerk.id] + \
-            worker_wait[worker]
-
-        print('%s enters the service at %.2f.' % (name, env.now))
-        yield env.process(clerk.service(name))
-
-        print('%s finished being serviced. Leaves the clerk %s at %.2f.' %
-              (name, clerk.id, env.now))
-
-    # Keep track of how many workers are serviced by a clerk, and the totoal time a clerk is busy for
-    clerk_num_served[clerk.id] += 1
-    clerk_busy[clerk.id] += env.now - start
-    yield clerks.put(clerk)
-
-    # Grab the cachier when avaialble (Queue FIFO)
-    cachier_worker_wait[worker] = env.now
-    with cachier.cachier.request() as request:
-        yield request
-        cachier_worker_wait[worker] = env.now - cachier_worker_wait[worker]
-        cachier_wait = cachier_wait + cachier_worker_wait[worker]
-
-        print('%s enters the cachier at %.2f.' % (name, env.now))
-        yield env.process(cachier.checkout(name))
-
-        print('%s finished checking out. Leaves the cachier at %.2f.' %
-              (name, env.now))
-    # Keep track of how many workers are fully served (make it throuch chachier)
-    workers_served += 1
-
-
-def setup(env, clerks, cachier):
+def setup(env):
     """Keep creating workers approx. every ``IAT`` minutes +-1 IAT_range ."""
-    global workers_arrived
+    global patients_arrived
+    patient_timeouts = {
+        "em_ser": None,
+        "em_mod": None,
+        "img_in": None,
+        "img_out": None,
+        "lab_in": None,
+        "lab_out": None,
+    }
+    for key in patient_timeouts:
+        if patient_timeouts[key] == None:
+            now = convert_time(env.now)
+            patient_timeouts[key] = None if timing[key] == None else timing[key][now[0]][now[1]] + env.now
+
+
     while True:
-        timeout = env.timeout(random.randint(IAT_MIN, IAT_MAX))
-        yield timeout
-        env.process(worker(env, workers_arrived, clerks, cachier))
-        workers_arrived += 1
+        minTime = 99999
+        for key, value in patient_timeouts.items():
+            if value != None and value < minTime:
+                minTime = value
+                next_timeout = key
+
+        yield env.timeout(patient_timeouts[next_timeout])
+
+        priority = (
+            2 if next_timeout == "em_ser" else 1 if next_timeout == "em_mod" else None
+        )
+
+        prob_bulking = bulking[next_timeout]
+        prob_reneging = (
+            None
+            if reneging[next_timeout] == None
+            else random.randint(reneging[next_timeout][0], reneging[next_timeout][0])
+        )
+        
+        new_patient = Patient(env, patients_arrived, priority, next_timeout, prob_bulking, prob_reneging)
+
+        env.process(patient(env, new_patient))
+        patient_timeouts[next_timeout] = timing[key][now[0]][now[1]] + env.now
+        patients_arrived += 1
 
 
 # Create an environment
 random.seed(RANDOM_SEED)
 env = simpy.Environment()
 
-# Initialize clerk data for clerk A, B and C
-clerk_num_served = [0, 0, 0]
-clerk_busy = [0, 0, 0]
-clerk_waiting_time = [0, 0, 0]
-
-# Initialize cachier data
-cachier_wait = 0
-
-# Create store of clerks and initialize and add in each clerk
-clerks = simpy.Store(env, 3)
-clerk_a = Clerk(env, 0)
-clerk_b = Clerk(env, 1)
-clerk_c = Clerk(env, 2)
-clerks.put(clerk_a)
-clerks.put(clerk_b)
-clerks.put(clerk_c)
-
 # Initialize cachier
-cachier = Cachier(env, 3)
+# cachier = Cachier(env, 3)
 
 # Set-up and Execute!
-env.process(setup(env, clerks, cachier))
+env.process(setup(env))
 env.run(until=SIM_TIME)
-
-
-# Print statistics
-clerks = ["Clerk A", "Clerk B", "Clerk C"]
-
-print(clerk_busy)
-print(SIM_TIME)
-print("System's Statisitcs:")
-print("\t Workers Arrived: ", workers_arrived)
-print("\t Workers Served: ", workers_served)
-print("\t Clerks all busy at same time: ", all_busy)
-print("\t Avg time busy: %i" % (sum(clerk_busy) / len(clerk_busy)))
-print("\t Avg busy clerk: %.2f\n\n" %
-      (sum(clerk_busy) / len(clerk_busy) / SIM_TIME))
-
-for x in range(3):
-    print("%s's Statisitcs:" % (clerks[x]))
-    print("\t Number of Workers Served: ", clerk_num_served[x])
-    print("\t Time Busy: ", clerk_busy[x])
-    print("\t Util: %.2f" % (clerk_busy[x] / SIM_TIME))
-    print("\t Total Waiting Time: ", clerk_waiting_time[x])
-    print("\t Average Waiting Time: %.2f\n\n" %
-          (clerk_waiting_time[x] / clerk_num_served[x]))
-
-print("Cachier's Statisitcs:")
-print("\t Number of Workers Served: ", workers_served)
-print("\t Total Waiting Time: ", cachier_wait)
-print("\t Average Waiting Time: %.2f" % (cachier_wait / workers_served))

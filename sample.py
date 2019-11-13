@@ -41,10 +41,9 @@ class Clerk(object):
     def service(self, worker):
         """The clerk service process. It takes a ``worker`` processes and tries
         to service it."""
-        service_time = random.randrange(
-            CLERK_SERVICE_TIME_MIN, CLERK_SERVICE_TIME_MAX)
+        service_time = random.randrange(CLERK_SERVICE_TIME_MIN, CLERK_SERVICE_TIME_MAX)
         yield self.env.timeout(service_time)
-        print('Clerk %s has started servicing %s.' % (self.id, worker))
+        print("Clerk %s has started servicing %s." % (self.id, worker))
 
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
@@ -60,7 +59,8 @@ class Cachier(object):
         """The cachier check_out process. It takes a ``worker`` processes and tries
         to check it out."""
         checkout_time = random.randrange(
-            CACHIER_SERVICE_TIME_MIN, CACHIER_SERVICE_TIME_MAX)
+            CACHIER_SERVICE_TIME_MIN, CACHIER_SERVICE_TIME_MAX
+        )
         yield self.env.timeout(checkout_time)
         print("Cachier services ", worker)
 
@@ -77,7 +77,7 @@ def worker(env, worker, clerks, cachier):
         all_busy = True
     name = "Worker" + str(worker)
     # Grab an available Clerk - otherwise wait until one is available (FIFO)
-    print('%s arrives at the store at %.2f.' % (name, env.now))
+    print("%s arrives at the store at %.2f." % (name, env.now))
     worker_wait[worker] = env.now
     clerk = yield clerks.get()
     start = env.now
@@ -85,14 +85,17 @@ def worker(env, worker, clerks, cachier):
     with clerk.clerk.request() as request:
         yield request
         worker_wait[worker] = env.now - worker_wait[worker]
-        clerk_waiting_time[clerk.id] = clerk_waiting_time[clerk.id] + \
-            worker_wait[worker]
+        clerk_waiting_time[clerk.id] = (
+            clerk_waiting_time[clerk.id] + worker_wait[worker]
+        )
 
-        print('%s enters the service at %.2f.' % (name, env.now))
+        print("%s enters the service at %.2f." % (name, env.now))
         yield env.process(clerk.service(name))
 
-        print('%s finished being serviced. Leaves the clerk %s at %.2f.' %
-              (name, clerk.id, env.now))
+        print(
+            "%s finished being serviced. Leaves the clerk %s at %.2f."
+            % (name, clerk.id, env.now)
+        )
 
     # Keep track of how many workers are serviced by a clerk, and the totoal time a clerk is busy for
     clerk_num_served[clerk.id] += 1
@@ -106,11 +109,10 @@ def worker(env, worker, clerks, cachier):
         cachier_worker_wait[worker] = env.now - cachier_worker_wait[worker]
         cachier_wait = cachier_wait + cachier_worker_wait[worker]
 
-        print('%s enters the cachier at %.2f.' % (name, env.now))
+        print("%s enters the cachier at %.2f." % (name, env.now))
         yield env.process(cachier.checkout(name))
 
-        print('%s finished checking out. Leaves the cachier at %.2f.' %
-              (name, env.now))
+        print("%s finished checking out. Leaves the cachier at %.2f." % (name, env.now))
     # Keep track of how many workers are fully served (make it throuch chachier)
     workers_served += 1
 
@@ -164,8 +166,7 @@ print("\t Workers Arrived: ", workers_arrived)
 print("\t Workers Served: ", workers_served)
 print("\t Clerks all busy at same time: ", all_busy)
 print("\t Avg time busy: %i" % (sum(clerk_busy) / len(clerk_busy)))
-print("\t Avg busy clerk: %.2f\n\n" %
-      (sum(clerk_busy) / len(clerk_busy) / SIM_TIME))
+print("\t Avg busy clerk: %.2f\n\n" % (sum(clerk_busy) / len(clerk_busy) / SIM_TIME))
 
 for x in range(3):
     print("%s's Statisitcs:" % (clerks[x]))
@@ -173,8 +174,10 @@ for x in range(3):
     print("\t Time Busy: ", clerk_busy[x])
     print("\t Util: %.2f" % (clerk_busy[x] / SIM_TIME))
     print("\t Total Waiting Time: ", clerk_waiting_time[x])
-    print("\t Average Waiting Time: %.2f\n\n" %
-          (clerk_waiting_time[x] / clerk_num_served[x]))
+    print(
+        "\t Average Waiting Time: %.2f\n\n"
+        % (clerk_waiting_time[x] / clerk_num_served[x])
+    )
 
 print("Cachier's Statisitcs:")
 print("\t Number of Workers Served: ", workers_served)
