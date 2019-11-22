@@ -41,7 +41,8 @@ class Clerk(object):
     def service(self, worker):
         """The clerk service process. It takes a ``worker`` processes and tries
         to service it."""
-        service_time = random.randrange(CLERK_SERVICE_TIME_MIN, CLERK_SERVICE_TIME_MAX)
+        service_time = random.randrange(
+            CLERK_SERVICE_TIME_MIN, CLERK_SERVICE_TIME_MAX)
         yield self.env.timeout(service_time)
         print("Clerk %s has started servicing %s." % (self.id, worker))
 
@@ -112,7 +113,8 @@ def worker(env, worker, clerks, cachier):
         print("%s enters the cachier at %.2f." % (name, env.now))
         yield env.process(cachier.checkout(name))
 
-        print("%s finished checking out. Leaves the cachier at %.2f." % (name, env.now))
+        print("%s finished checking out. Leaves the cachier at %.2f." %
+              (name, env.now))
     # Keep track of how many workers are fully served (make it throuch chachier)
     workers_served += 1
 
@@ -166,7 +168,8 @@ print("\t Workers Arrived: ", workers_arrived)
 print("\t Workers Served: ", workers_served)
 print("\t Clerks all busy at same time: ", all_busy)
 print("\t Avg time busy: %i" % (sum(clerk_busy) / len(clerk_busy)))
-print("\t Avg busy clerk: %.2f\n\n" % (sum(clerk_busy) / len(clerk_busy) / SIM_TIME))
+print("\t Avg busy clerk: %.2f\n\n" %
+      (sum(clerk_busy) / len(clerk_busy) / SIM_TIME))
 
 for x in range(3):
     print("%s's Statisitcs:" % (clerks[x]))
