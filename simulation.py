@@ -28,7 +28,7 @@ reneging = {
     "img_in": None,
     "img_out": [30, 90],
     "lab_in": None,
-    "lab_out": [30, 90],
+    "lab_out": [0, 0],
 }
 
 timing = {
@@ -42,27 +42,24 @@ timing = {
 
 
 class Patient(object):
-    def __init__(self, env, num, priority, purpose, prob_balking, prob_reneging):
+    def __init__(self, env, num, priority, purpose, prob_balking, reneging_threshold):
         self.env = env
         self.id = num
         self.priority = priority
         self.purpose = purpose
         self.prob_balking = prob_balking
-        self.prop_reneging = prob_reneging
+        self.reneging_threshold = reneging_threshold
 
 
 class Registration(object):
     def __init__(self, env):
         self.env = env
-        self.env = simpy.Resource(env, 1)
+        self.desk = simpy.Resource(env, 1)
 
     def service(self, patient):
         service_time = random.randrange(3, 8)
         yield self.env.timeout(service_time)
-        print(
-            "Registration for patient %s has started servicing %s." % (
-                self.id, patient)
-        )
+        print("Registration service started for patient %s." % (patient))
 
 
 # priority resource
@@ -85,13 +82,42 @@ class Lab(object):
         self.env = env
         self.station = simpy.resources.resource.PriorityResource(env, 2)
 
+    def service(self, patient):
+        service_time = random.randrange(4, 10)
+        yield self.env.timeout(service_time)
+        print("Lab service started for patient %s." % (patient))
+
 
 def patient(env, patient, registration, ed, imaging, lab):
-    print(patient.__dict__)
-    if (patient.priority == "1"):
-        if registration
+    # print(patient.__dict__)
+    if ("lab" in patient.purpose):
+        if (lab.station.count >= 5 and patient.prob_balking > random.randrange(0, 1)):
+            print('Patient {} is balking'.format(patient.id))
+        else:
+            print('Patient is not balking')
+            # Register nce finished registering
+            with registration.desk.request() as request:
+                yield request
+                print("Patient %s enters the registration at %.2f." %
+                      (patient.id, env.now))
+                yield env.process(registration.service(patient.id))
+                print("Patient %s finished registration service. Leaving lab at %.2f." %
+                      (patient.id, env.now))
+            # patient.reneging_threshold = patient.reneging_threshold + env.now
 
-    yield env.timeout(1)
+            with lab.station.request(priority=patient.priority) as request:
+                print(lab.station.count)
+                results = yield request | env.timeout(patient.reneging_threshold)
+                print(results)
+
+                if request in results:
+                    print("Patient %s enters the lab at %.2f." %
+                          (patient.id, env.now))
+                    yield env.process(lab.service(patient.id))
+                    print("Patient %s finished lab service. Leaving lab at %.2f." %
+                          (patient.id, env.now))
+                else:
+                    print('Patient {} reneged'.format(patient.id))
 
 
 def convert_time(time):
@@ -145,14 +171,14 @@ def setup(env, registration, ed, imaging, lab):
         )
 
         prob_balking = balking[next_timeout]
-        prob_reneging = (
+        reneging_threshold = (
             None
             if reneging[next_timeout] == None
-            else random.randint(reneging[next_timeout][0], reneging[next_timeout][0])
+            else random.randint(reneging[next_timeout][0], reneging[next_timeout][1])
         )
 
         new_patient = Patient(env, patients_arrived, priority,
-                              next_timeout, prob_balking, prob_reneging)
+                              next_timeout, prob_balking, reneging_threshold)
 
         env.process(patient(env, new_patient, registration, ed, imaging, lab))
         patient_timeouts[next_timeout] = timing[key][now[0]][now[1]] + env.now
@@ -168,6 +194,7 @@ registration = Registration(env)
 ed = ED(env)
 imaging = Imaging(env)
 lab = Lab(env)
+print(lab.station.__dict__)
 
 # Set-up and Execute!
 env.process(setup(env, registration, ed, imaging, lab))
