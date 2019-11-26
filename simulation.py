@@ -13,6 +13,7 @@ patients_arrived = 0
 
 shift = {}
 
+# TIME IS IN MIN
 balking = {
     "em_ser": 0,
     "em_mod": 0.3,
@@ -75,15 +76,21 @@ class Imaging(object):
         self.env = env
         self.station = simpy.resources.resource.PriorityResource(env, 1)
 
+    def service(self, patient):
+        service_time = random.triangular(8, 20, 12)
+        yield self.env.timeout(service_time)
+        print("Imaging service started for patient %s." % (patient))
+
 
 # priority resource
 class Lab(object):
     def __init__(self, env):
         self.env = env
         self.station = simpy.resources.resource.PriorityResource(env, 2)
+        self.tech = simpy.resources.resource.PriorityResource(env, 2)
 
     def service(self, patient):
-        service_time = random.randrange(4, 10)
+        service_time = random.triangular(4, 10, 6)
         yield self.env.timeout(service_time)
         print("Lab service started for patient %s." % (patient))
 
@@ -106,16 +113,17 @@ def patient(env, patient, registration, ed, imaging, lab):
             # patient.reneging_threshold = patient.reneging_threshold + env.now
 
             with lab.station.request(priority=patient.priority) as request:
-                print(lab.station.count)
                 results = yield request | env.timeout(patient.reneging_threshold)
-                print(results)
-
                 if request in results:
                     print("Patient %s enters the lab at %.2f." %
                           (patient.id, env.now))
-                    yield env.process(lab.service(patient.id))
-                    print("Patient %s finished lab service. Leaving lab at %.2f." %
-                          (patient.id, env.now))
+                    with lab.tech.request(priority=patient.priority) as request:
+                        yield request
+                        print("Lab tech has arrived for service of patient {} at {}".format(
+                            patient.id, env.now))
+                        yield env.process(lab.service(patient.id))
+                        print("Patient %s finished lab service. Leaving lab at %.2f." %
+                              (patient.id, env.now))
                 else:
                     print('Patient {} reneged'.format(patient.id))
 
