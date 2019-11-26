@@ -97,7 +97,7 @@ class Lab(object):
 
 def patient(env, patient, registration, ed, imaging, lab):
     # print(patient.__dict__)
-    if ("lab" in patient.purpose):
+    if (patient.purpose == "lab_out"):
         if (lab.station.count >= 5 and patient.prob_balking > random.randrange(0, 1)):
             print('Patient {} is balking'.format(patient.id))
         else:
