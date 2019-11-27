@@ -240,11 +240,9 @@ def convert_time(time):
 
 def print_time(env):
     # env.now in min
-    # 105517.00.
     # Week: Day:   Hour:   Min:
-
-    # time = env.now
-    tempTime = 10140
+    time = env.now
+    tempTime = time
     week_min = 10080
     day_min = 1440
     hour_min = 60
@@ -254,28 +252,7 @@ def print_time(env):
     tempTime = tempTime - day * day_min
     hour = tempTime // hour_min
     minu = tempTime - hour * hour_min
-    # modWeek = math.modf(tempTime / week_min)
-    # week = modWeek[1]
-    # day_min = 1440
-    # tempTime = modWeek[0] * week_min
-    # modDay = math.modf(tempTime / day_min)
-    # day = modDay[1]
-    # tempTime = modDay[0] * day_min
-    # modHour = math.modf(tempTime / 60)
-    
-    # hour = tempTime // 60 #modHour[1]
-    # print(hour)
-    # minu = (modHour[0] // tempTime)
 
-    # min_in_week = time - week * week_min
-    # print(min_in_week)
-    # day_min = 1440
-    # day = min_in_week % day_min
-    # min_in_day = min_in_week - day * day_min
-    # hour_min = 60
-    # hour = min_in_day % hour_min
-    # min_in_hour = min_in_day - hour * hour_min
-    # minu = min_in_hour
     time = {
         "week": week,
         "day": day,
