@@ -42,15 +42,6 @@ timing = {
     "lab_out": [[16, 10, 0], [12, 0, 0], [8, 0, 0]],
 }
 
-staff_schedule = {
-    # 8-12, 12-16, 16-20 hours
-    "doctor": [1, 1, 1],
-    "nurse": [2, 2, 2],
-    "imaging_tech": [1, 1, 1],
-    "lab_tech": [1, 1, 1],
-    "registration": [1, 1, 1],
-}
-
 costs = {
     "doctor": 200,
     "nurse": 100,
@@ -86,6 +77,22 @@ ser_refferal = {
     "dep": 0.55
 }
 
+staff_schedule = {
+    # 8-12, 12-16, 16-20 hours
+    "doctor": [1, 1, 1],
+    "nurse": [2, 2, 2],
+    "imaging_tech": [1, 1, 1],
+    "lab_tech": [1, 1, 1],
+    "registration": [1, 1, 1],
+}
+
+hosptial_layout = {
+    "registration": 1,
+    "ED": 4,
+    "imaging": 1,
+    "lab": 2,
+}
+
 
 class Patient(object):
     def __init__(self, env, num, priority, purpose, prob_balking, reneging_threshold):
@@ -98,9 +105,10 @@ class Patient(object):
 
 
 class Registration(object):
-    def __init__(self, env):
+    def __init__(self, env, num_clerks):
         self.env = env
-        self.desk = simpy.Resource(env, 1)
+        self.desk = simpy.Resource(env, hosptial_layout["registration"])
+        self.clerk = simpy.Resource(env, num_clerks)
 
     def service(self, patient):
         service_time = random.randrange(3, 8)
@@ -110,19 +118,23 @@ class Registration(object):
 
 # priority resource
 class ED(object):
-    def __init__(self, env):
+    def __init__(self, env, num_nurses, num_doctors):
         self.env = env
-        self.room = simpy.resources.resource.PriorityResource(env, 4)
-        self.nurse = simpy.resources.resource.PriorityResource(env, 2)
-        self.doctor = simpy.resources.resource.PriorityResource(env, 2)
+        self.room = simpy.resources.resource.PriorityResource(
+            env, hosptial_layout["ED"])
+        self.nurse = simpy.resources.resource.PriorityResource(env, num_nurses)
+        self.doctor = simpy.resources.resource.PriorityResource(
+            env, num_doctors)
 
 
 # priority resource
 class Imaging(object):
-    def __init__(self, env):
+    def __init__(self, env, num_imaging_techs):
         self.env = env
-        self.station = simpy.resources.resource.PriorityResource(env, 1)
-        self.tech = simpy.resources.resource.PriorityResource(env, 1)
+        self.station = simpy.resources.resource.PriorityResource(
+            env, hosptial_layout["imaging"])
+        self.tech = simpy.resources.resource.PriorityResource(
+            env, num_imaging_techs)
 
     def service(self, patient):
         service_time = random.triangular(8, 20, 12)
@@ -132,10 +144,12 @@ class Imaging(object):
 
 # priority resource
 class Lab(object):
-    def __init__(self, env):
+    def __init__(self, env, num_lab_techs):
         self.env = env
-        self.station = simpy.resources.resource.PriorityResource(env, 2)
-        self.tech = simpy.resources.resource.PriorityResource(env, 2)
+        self.station = simpy.resources.resource.PriorityResource(
+            env, hosptial_layout["lab"])
+        self.tech = simpy.resources.resource.PriorityResource(
+            env, num_lab_techs)
 
     def service(self, patient):
         service_time = random.triangular(4, 10, 6)
@@ -208,7 +222,7 @@ def patient(env, patient, registration, ed, imaging, lab):
                     print('Patient {} reneged from imaging'.format(patient.id))
 
 
-def waitForRegistration(patient):
+def waitForRegistration(registration, patient):
     with registration.desk.request() as request:
         yield request
         print("Patient %s enters the registration at %.2f." %
@@ -238,7 +252,7 @@ def convert_time(time):
     return [weekIndex, dayIndex]
 
 
-def print_time(env):
+def get_time(env):
     # env.now in min
     # 105517.00.
     # Week: Day:   Hour:   Min:
@@ -293,7 +307,42 @@ def setup(env, registration, ed, imaging, lab):
             patient_timeouts[key] = None if timing[key] == None else timing[key][now[0]
                                                                                  ][now[1]] + env.now
 
+    shift_change = [False, False, False]
+
     while True:
+
+        time = get_time(env)
+        hour = time["hour"]
+        if (hour > 20):
+            print("Clinic is now closed.".format(time))
+            shift_change = [False, False, False]
+            # clinic closes for 12 hours
+            yield env.timeout(60 * 12)
+            break
+
+        if (hour > 8 and hour < 12 and shift_change[0] == False):
+            registration = Registration(env, staff_schedule["registration"][0])
+            ed = ED(env, staff_schedule["nurse"]
+                    [0], staff_schedule["doctor"][0])
+            imaging = Imaging(env, staff_schedule["imaging_tech"][0])
+            lab = Lab(env, staff_schedule["lab_tech"][0])
+            shift_change[0] == True
+
+        elif (hour > 12 and hour < 16 and shift_change[1] == False):
+            registration = Registration(env, staff_schedule["registration"][1])
+            ed = ED(env, staff_schedule["nurse"]
+                    [1], staff_schedule["doctor"][1])
+            imaging = Imaging(env, staff_schedule["imaging_tech"][1])
+            lab = Lab(env, staff_schedule["lab_tech"][1])
+            shift_change[1] == True
+
+        elif (hour > 16 and hour < 20 and shift_change[2] == False):
+            registration = Registration(env, staff_schedule["registration"][2])
+            ed = ED(env, staff_schedule["nurse"]
+                    [2], staff_schedule["doctor"][2])
+            imaging = Imaging(env, staff_schedule["imaging_tech"][2])
+            lab = Lab(env, staff_schedule["lab_tech"][2])
+            shift_change[2] == True
 
         minTime = 99999
         # Change shift of staff based on time on new days re-start
@@ -323,19 +372,20 @@ def setup(env, registration, ed, imaging, lab):
         patients_arrived += 1
 
 
-# # Create an environment
-# random.seed(RANDOM_SEED)
-# env = simpy.Environment()
+# Create an environment
+random.seed(RANDOM_SEED)
+env = simpy.Environment(initial_time=60*8)
 
-# # Initialize
-# registration = Registration(env)
-# ed = ED(env)
-# imaging = Imaging(env)
-# lab = Lab(env)
-# print(lab.station.__dict__)
+# Initialize
+registration = Registration(env, staff_schedule["registration"][2])
+ed = ED(env, staff_schedule["nurse"]
+        [2], staff_schedule["doctor"][2])
+imaging = Imaging(env, staff_schedule["imaging_tech"][2])
+lab = Lab(env, staff_schedule["lab_tech"][2])
+print(lab.station.__dict__)
 
-# # Set-up and Execute!
-# env.process(setup(env, registration, ed, imaging, lab))
-# env.run(until=SIM_TIME)
+# Set-up and Execute!
+env.process(setup(env, registration, ed, imaging, lab))
+env.run(until=SIM_TIME)
 
-print_time(None)
+# print_time(None)
