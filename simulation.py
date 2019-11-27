@@ -244,19 +244,28 @@ def print_time(env):
     # Week: Day:   Hour:   Min:
 
     # time = env.now
-    time = 10140
+    tempTime = 10140
     week_min = 10080
-    modWeek = math.modf(time / week_min)
-    print(modWeek)
-    week = modWeek[1]
     day_min = 1440
-    time = modWeek[0] * week_min
-    modDay = math.modf(time / day_min)
-    day = modDay[1]
-    time = modDay[0] * day_min
-    modHour = math.modf(time / 60)
-    hour = modHour[1]
-    minu = Math.round(modHour[0] / time)
+    hour_min = 60
+    week = tempTime // week_min
+    tempTime = tempTime - week * week_min
+    day = tempTime // day_min
+    tempTime = tempTime - day * day_min
+    hour = tempTime // hour_min
+    minu = tempTime - hour * hour_min
+    # modWeek = math.modf(tempTime / week_min)
+    # week = modWeek[1]
+    # day_min = 1440
+    # tempTime = modWeek[0] * week_min
+    # modDay = math.modf(tempTime / day_min)
+    # day = modDay[1]
+    # tempTime = modDay[0] * day_min
+    # modHour = math.modf(tempTime / 60)
+    
+    # hour = tempTime // 60 #modHour[1]
+    # print(hour)
+    # minu = (modHour[0] // tempTime)
 
     # min_in_week = time - week * week_min
     # print(min_in_week)
