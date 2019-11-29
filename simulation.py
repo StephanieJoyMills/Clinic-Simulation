@@ -1,39 +1,42 @@
-import random
-import simpy
-import math
+#IMPORTS
+import random #ability to generate random numbers
+import simpy #for simulation features
+import math #abilitity to run mathematical calculations
 from functools import partial, wraps
 
-RANDOM_SEED = 720
-IAT_MIN = 8
-IAT_MAX = 16
-SIM_TIME = 1997200
-# Define our probabilities
-CLINIC_OPERATION = 12 * 7
+RANDOM_SEED = 720 #set seed for randomization
+IAT_MIN = 8 #minimum interarrival time
+IAT_MAX = 16 #maximum interarrival time
+SIM_TIME = 1997200 #time of the simulation
+
+CLINIC_OPERATION = 12 * 7 #HOURS DAYS
 global patients_arrived
-patients_arrived = 0
+patients_arrived = 0 #initally 0 patients in clinic
 
 shift = {}
 
-# TIME IS IN MIN
-balking = {
-    "em_ser": 0,
-    "em_mod": 0.3,
-    "img_in": 0,
-    "img_out": 0.15,
-    "lab_in": 0,
-    "lab_out": 0.1,
+# DEFINE OUR PROBABILITIES
+#probability of balking
+balking = { 
+    "em_ser": 0, #probability of balking from ED as a serious patient
+    "em_mod": 0.3,  #probability of balking from ED as a moderate patient
+    "img_in": 0, #probability of balking from imaging as an inpatient
+    "img_out": 0.15, #probability of balking from imaging as an outpatient
+    "lab_in": 0, #probability of balking from lab as an inpatient
+    "lab_out": 0.1, #probability of balking from lab as an outpatient
 }
 
+#Probability of renegeing
 reneging = {
     "em_ser": None,
     "em_mod": [90, 150],
     "img_in": None,
     "img_out": [30, 90],
     "lab_in": None,
-    "lab_out": [0, 0],
+    "lab_out": [30, 90],
 }
 
-# 1/arrival_rate - inter arrival time
+#Patient arrival rates per department
 arrival_times = {
     "em_ser": [[1.5, 1, 1], [1.5, 1, 1], [1.5, 1, 0.5]],
     "em_mod": [[3, 2, 2], [3, 2, 1], [3, 1, 0.5]],
@@ -43,6 +46,7 @@ arrival_times = {
     "lab_out": [[16, 10, 0], [12, 0, 0], [8, 0, 0]],
 }
 
+#The cost of staff resources hourly
 costs = {
     "doctor": 200,
     "nurse": 100,
@@ -51,6 +55,41 @@ costs = {
     "registration": 40
 }
 
+#Probability that someone from ER gets referred elsewhere
+#Moderate ER Refferal
+mod_refferal = { #CDF
+    "imaging": 0.15, #15%
+    "lab": 0.35, #20%
+    "dep": 1 #65%
+}
+
+#Serious ER Refferal
+ser_refferal = { #CDF
+    "imaging": 0.2,
+    "lab": 0.45,
+    "dep": 1
+}
+
+#General Staff schedule
+staff_schedule = {
+    # 8-12, 12-16, 16-20 hours
+    "doctor":        [1, 1, 1],
+    "nurse":         [2, 2, 2],
+    "imaging_tech":  [1, 1, 1],
+    "lab_tech":      [1, 1, 1],
+    "registration":  [1, 1, 1],
+}
+
+#Number of hospital stations available
+hosptial_layout = {
+    "registration": 1, #1 registration desk
+    "ED": 4, #4 Emergency Department rooms
+    "imaging": 1, #1 imaging station
+    "lab": 2, #2 lab stations
+}
+
+#The cost of rooms associated with operation
+#Operating rooms per hour
 hourly_room_cost = {
     "ED": 500,
     "imaging": 400,
@@ -58,6 +97,7 @@ hourly_room_cost = {
     "registration": 50
 }
 
+#Operating Capital Costs (New)
 capital_room_cost = {
     "ED": 200000,
     "imaging": 800000,
@@ -65,47 +105,19 @@ capital_room_cost = {
     "registration": 30000
 }
 
-# if someone from ER gets referred to something else
-mod_refferal = {
-    "imaging": 0.15,
-    "lab": 0.35,
-    "dep": 1
-}
-
-ser_refferal = {
-    "imaging": 0.2,
-    "lab": 0.45,
-    "dep": 1
-}
-
-staff_schedule = {
-    # 8-12, 12-16, 16-20 hours
-    "doctor": [1, 1, 1],
-    "nurse": [2, 2, 2],
-    "imaging_tech": [1, 1, 1],
-    "lab_tech": [1, 1, 1],
-    "registration": [1, 1, 1],
-}
-
-hosptial_layout = {
-    "registration": 1,
-    "ED": 4,
-    "imaging": 1,
-    "lab": 2,
-}
-
 
 def get_time(env):
-    # env.now in min
-    # Week: Day:   Hour:   Min:
-    time = env.now
-    tempTime = time
-    week_min = 10080
-    day_min = 1440
-    hour_min = 60
-    week = tempTime // week_min
-    tempTime = tempTime - week * week_min
-    day = tempTime // day_min
+  # Week: Day:   Hour:   Min:
+    time = env.now #set the time to the current environment time in simpy
+    tempTime = time #stash temp for now (runs in minutes)
+
+    week_min = 10080 #number of minutes in a week
+    day_min = 1440 #number of minutes in a day
+    hour_min = 60 #number of minutes in an hr
+
+    week = tempTime // week_min #number of hours in a given week is time w/ Floor division
+    tempTime = tempTime - week * week_min #update temptime to remove number of weeks
+    day = tempTime // day_min # floor division results whole number
     tempTime = tempTime - day * day_min
     hour = tempTime // hour_min
     minu = tempTime - hour * hour_min
@@ -116,28 +128,32 @@ def get_time(env):
         "hour": hour,
         "minu": minu
     }
-    return time
+
+    return time #result the time
 
 
+#CREATE PATIENT OBJECT
 class Patient(object):
     def __init__(self, env, num, priority, purpose, prob_balking, reneging_threshold):
-        self.env = env
-        self.id = num
-        self.priority = priority
-        self.purpose = purpose
-        self.prob_balking = prob_balking
-        self.reneging_threshold = reneging_threshold
+        #Each patient has attributes: self and environment
+        self.env = env #SimPy requirement to create new simulation events
+        self.id = num #Patient identifying number
+        self.priority = priority #Priority level of patient
+        self.purpose = purpose #Reason patient is visiting the clinc (which department: ED, lab etc.)
+        self.prob_balking = prob_balking #Probability the patient balks from the clinic prior to entering queue
+        self.reneging_threshold = reneging_threshold #Prob patient leaves while waiting in queue
 
 
+#CREATE REGISTRATION OBJECT
 class Registration(object):
     def __init__(self, env, num_clerks):
-        self.env = env
-        self.desk = simpy.Resource(env, hosptial_layout["registration"])
-        self.clerk = simpy.Resource(env, num_clerks)
+        self.env = env 
+        self.desk = simpy.Resource(env, hosptial_layout["registration"]) #create room resource at registration desk
+        self.clerk = simpy.Resource(env, num_clerks) #create registration clerk object for registration desk
 
     def service(self, patient):
-        service_time = random.randrange(3, 8)
-        yield self.env.timeout(service_time)
+        service_time = random.randrange(3, 8) #registration time varies uniformly between 3-8 minutes
+        yield self.env.timeout(service_time) #timeout patient object for this amount of time
         print("Registration service started for patient %s." % (patient))
 
 
