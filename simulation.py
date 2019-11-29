@@ -157,46 +157,50 @@ class Registration(object):
         print("Registration service started for patient %s." % (patient))
 
 
-# priority resource
+#CREATE PRIORITY RESOURCE
 class ED(object):
+    #INITIALIZE EMERGENCY DEPARTMENT
     def __init__(self, env, num_nurses, num_doctors):
         self.env = env
-        self.room = simpy.resources.resource.PriorityResource(
-            env, hosptial_layout["ED"])
-        self.nurse = simpy.resources.resource.PriorityResource(env, num_nurses)
-        self.doctor = simpy.resources.resource.PriorityResource(
-            env, num_doctors)
+        self.room = simpy.resources.resource.PriorityResource(env, hosptial_layout["ED"]) #Create emergency department rooms
+        self.nurse = simpy.resources.resource.PriorityResource(env, num_nurses) #Create number of nurses specified
+        self.doctor = simpy.resources.resource.PriorityResource( env, num_doctors) #Create number of doctors specified
 
+    #NURSE PREPARATION TIME
     def prep(self, patient):
-        if (patient.purpose == "em_mod"):
+        if (patient.purpose == "em_mod"): #MODERATE
             service_time = random.randint(6, 12)
 
-        else:
+        else: #SERIOUS
             service_time = random.randint(4, 7)
-        print("Nurse prep service started for patient {}".format(patient.id))
-        yield self.env.timeout(service_time)
-        print("Nurse prep service completed for patient {}".format(patient.id))
 
+        print("Nurse prep service started for patient {}".format(patient.id))
+        yield self.env.timeout(service_time) #Timeout nurse for service on patient
+        print("Nurse prep service completed for patient {}".format(patient.id)) #nurse released
+
+    #DOCTORS FIRST EXAMINATION ON PATIENT
     def init_exam(self, patient):
-        if (patient.purpose == "em_mod"):
+        if (patient.purpose == "em_mod"): #Moderate exam
             service_time = random.randint(7, 15)
-        else:
+        else: #Serious Exam
             service_time = random.randint(5, 15)
+
         print("Doctor inital exam started for patient {}".format(patient.id))
-        yield self.env.timeout(service_time)
+        yield self.env.timeout(service_time) #timeout doctor for duration of examination
         print("Doctor inital exam completed for patient {}".format(patient.id))
 
+    #DOCTORS FINAL EXAMINATION ON PATIENT
     def final_exam(self, patient):
-        if (patient.purpose == "em_mod"):
+        if (patient.purpose == "em_mod"): #moderate exam
             service_time = random.randint(2, 5)
-        else:
+        else: #serious exam
             service_time = random.randint(2, 5)
         print("Doctor final exam started for patient {}".format(patient.id))
-        yield self.env.timeout(service_time)
+        yield self.env.timeout(service_time) #timeout doctor for duration of examination
         print("Doctor final exam completed for patient {}".format(patient.id))
 
 
-# priority resource
+#IMAGING DEPARTMENT OBJECT
 class Imaging(object):
     def __init__(self, env, num_imaging_techs):
         self.env = env
