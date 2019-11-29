@@ -1,39 +1,47 @@
-import random
-import simpy
-import math
+#IMPORTS
+import random #ability to generate random numbers
+import simpy #for simulation features
+import math #abilitity to run mathematical calculations
 from functools import partial, wraps
 
-RANDOM_SEED = 720
-IAT_MIN = 8
-IAT_MAX = 16
-SIM_TIME = 1997200
-# Define our probabilities
-CLINIC_OPERATION = 12 * 7
+RANDOM_SEED = 720 #set seed for randomization
+IAT_MIN = 8 #minimum interarrival time
+IAT_MAX = 16 #maximum interarrival time
+SIM_TIME = 1997200 #time of the simulation
+
+CLINIC_OPERATION = 12 * 7 #HOURS DAYS
 global patients_arrived
-patients_arrived = 0
+patients_arrived = 0 #initally 0 patients in clinic
 
 shift = {}
 
-# TIME IS IN MIN
-balking = {
-    "em_ser": 0,
-    "em_mod": 0.3,
-    "img_in": 0,
-    "img_out": 0.15,
-    "lab_in": 0,
-    "lab_out": 0.1,
+# DEFINE OUR PROBABILITIES
+#probability of balking
+balking = { 
+    "em_ser": 0, #probability of balking from ED as a serious patient
+    "em_mod": 0.3,  #probability of balking from ED as a moderate patient
+    "img_in": 0, #probability of balking from imaging as an inpatient
+    "img_out": 0.15, #probability of balking from imaging as an outpatient
+    "lab_in": 0, #probability of balking from lab as an inpatient
+    "lab_out": 0.1, #probability of balking from lab as an outpatient
 }
 
+#Probability of renegeing
 reneging = {
     "em_ser": None,
     "em_mod": [90, 150],
     "img_in": None,
     "img_out": [30, 90],
     "lab_in": None,
-    "lab_out": [0, 0],
+    "lab_out": [30, 90],
 }
 
+<<<<<<< Updated upstream
 timing = {
+=======
+#Patient arrival rates per department
+arrival_times = {
+>>>>>>> Stashed changes
     "em_ser": [[1.5, 1, 1], [1.5, 1, 1], [1.5, 1, 0.5]],
     "em_mod": [[3, 2, 2], [3, 2, 1], [3, 1, 0.5]],
     "img_in": None,
@@ -42,6 +50,7 @@ timing = {
     "lab_out": [[16, 10, 0], [12, 0, 0], [8, 0, 0]],
 }
 
+<<<<<<< Updated upstream
 staff_schedule = {
     # 8-12, 12-16, 16-20 hours
     "doctor": [1, 1, 1],
@@ -51,6 +60,9 @@ staff_schedule = {
     "registration": [1, 1, 1],
 }
 
+=======
+#The cost of staff resources hourly
+>>>>>>> Stashed changes
 costs = {
     "doctor": 200,
     "nurse": 100,
@@ -59,6 +71,7 @@ costs = {
     "registration": 40
 }
 
+<<<<<<< Updated upstream
 hourly_room_cost = {
     "ED": 500,
     "imaging": 400,
@@ -78,43 +91,161 @@ mod_refferal = {
     "imaging": 0.15,
     "lab": 0.2,
     "dep": 0.65
+=======
+#Probability that someone from ER gets referred elsewhere
+#Moderate ER Refferal
+mod_refferal = { #CDF
+    "imaging": 0.15, #15%
+    "lab": 0.35, #20%
+    "dep": 1 #65%
+>>>>>>> Stashed changes
 }
 
-ser_refferal = {
+#Serious ER Refferal
+ser_refferal = { #CDF
     "imaging": 0.2,
+<<<<<<< Updated upstream
     "lab": 0.25,
     "dep": 0.55
 }
 
+=======
+    "lab": 0.45,
+    "dep": 1
+}
 
+#General Staff schedule
+staff_schedule = {
+    # 8-12, 12-16, 16-20 hours
+    "doctor":        [1, 1, 1],
+    "nurse":         [2, 2, 2],
+    "imaging_tech":  [1, 1, 1],
+    "lab_tech":      [1, 1, 1],
+    "registration":  [1, 1, 1],
+}
+
+#Number of hospital stations available
+hosptial_layout = {
+    "registration": 1, #1 registration desk
+    "ED": 4, #4 Emergency Department rooms
+    "imaging": 1, #1 imaging station
+    "lab": 2, #2 lab stations
+}
+
+#The cost of rooms associated with operation
+#Operating rooms per hour
+hourly_room_cost = {
+    "ED": 500,
+    "imaging": 400,
+    "lab": 300,
+    "registration": 50
+}
+
+#Operating Capital Costs (New)
+capital_room_cost = {
+    "ED": 200000,
+    "imaging": 800000,
+    "lab": 180000,
+    "registration": 30000
+}
+
+
+def get_time(env):
+    # Week: Day:   Hour:   Min:
+    time = env.now #set the time to the current environment time in simpy
+    tempTime = time #stash temp for now (runs in minutes)
+
+    week_min = 10080 #number of minutes in a week
+    day_min = 1440 #number of minutes in a day
+    hour_min = 60 #number of minutes in an hr
+
+    week = tempTime // week_min #number of hours in a given week is time w/ Floor division
+    tempTime = tempTime - week * week_min #update temptime to remove number of weeks
+    day = tempTime // day_min # floor division results whole number
+    tempTime = tempTime - day * day_min
+    hour = tempTime // hour_min
+    minu = tempTime - hour * hour_min
+
+    time = {
+        "week": week,
+        "day": day,
+        "hour": hour,
+        "minu": minu
+    }
+
+    return time #result the time
+>>>>>>> Stashed changes
+
+#CREATE PATIENT OBJECT
 class Patient(object):
     def __init__(self, env, num, priority, purpose, prob_balking, reneging_threshold):
-        self.env = env
-        self.id = num
-        self.priority = priority
-        self.purpose = purpose
-        self.prob_balking = prob_balking
-        self.reneging_threshold = reneging_threshold
+        #Each patient has attributes: self and environment
+        self.env = env #SimPy requirement to create new simulation events
+        self.id = num #Patient identifying number
+        self.priority = priority #Priority level of patient
+        self.purpose = purpose #Reason patient is visiting the clinc (which department: ED, lab etc.)
+        self.prob_balking = prob_balking #Probability the patient balks from the clinic prior to entering queue
+        self.reneging_threshold = reneging_threshold #Prob patient leaves while waiting in queue
 
-
+#CREATE REGISTRATION OBJECT
 class Registration(object):
+<<<<<<< Updated upstream
     def __init__(self, env):
         self.env = env
         self.desk = simpy.Resource(env, 1)
+=======
+    def __init__(self, env, num_clerks):
+        self.env = env 
+        self.desk = simpy.Resource(env, hosptial_layout["registration"]) #create room resource at registration desk
+        self.clerk = simpy.Resource(env, num_clerks) #create registration clerk object for registration desk
+>>>>>>> Stashed changes
 
     def service(self, patient):
-        service_time = random.randrange(3, 8)
-        yield self.env.timeout(service_time)
+        service_time = random.randrange(3, 8) #registration time varies uniformly between 3-8 minutes
+        yield self.env.timeout(service_time) #timeout patient object for this amount of time
         print("Registration service started for patient %s." % (patient))
 
-
-# priority resource
+#PRIORITY RESOURCE
 class ED(object):
     def __init__(self, env):
         self.env = env
+<<<<<<< Updated upstream
         self.room = simpy.resources.resource.PriorityResource(env, 4)
         self.nurse = simpy.resources.resource.PriorityResource(env, 2)
         self.doctor = simpy.resources.resource.PriorityResource(env, 2)
+=======
+        self.room = simpy.resources.resource.PriorityResource(env, hosptial_layout["ED"]) #Create room resource for Emerg. Depart using num rooms
+        self.nurse = simpy.resources.resource.PriorityResource(env, num_nurses) #create nurse objects for ER simulation
+        self.doctor = simpy.resources.resource.PriorityResource(env, num_doctors) #create doctor objects for ER simulation
+
+    def prep(self, patient):
+        if (patient.purpose == "em_mod"):
+            service_time = random.randint(6, 12)
+
+        else:
+            service_time = random.randint(4, 7)
+        print("Nurse prep service started for patient {}".format(patient.id))
+        yield self.env.timeout(service_time)
+        print("Nurse prep service completed for patient {}".format(patient.id))
+
+    def init_exam(self, patient):
+        if (patient.purpose == "em_mod"):
+            service_time = random.randint(7, 15)
+        else:
+            service_time = random.randint(5, 15)
+        print("Doctor inital exam started for patient {}".format(patient.id))
+        yield self.env.timeout(service_time)
+        print("Doctor inital exam completed for patient {}".format(patient.id))
+
+    def final_exam(self, patient):
+        if (patient.purpose == "em_mod"):
+            service_time = random.randint(2, 5)
+        else:
+            service_time = random.randint(2, 5)
+        print("Doctor final exam started for patient {}".format(patient.id))
+        yield self.env.timeout(service_time)
+        print("Doctor final exam completed for patient {}".format(patient.id))
+>>>>>>> Stashed changes
 
 
 # priority resource
