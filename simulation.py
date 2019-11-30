@@ -196,7 +196,7 @@ class ED(object):
         else: #serious exam
             service_time = random.randint(2, 5)
         print("Doctor final exam started for patient {}".format(patient.id))
-        yield self.env.timeout(service_time) #timeout doctor for duration of examination
+        yield self.env.timeout(service_time) #timeout doctor & patient for duration of examination
         print("Doctor final exam completed for patient {}".format(patient.id))
 
 
@@ -204,79 +204,78 @@ class ED(object):
 class Imaging(object):
     def __init__(self, env, num_imaging_techs):
         self.env = env
-        self.station = simpy.resources.resource.PriorityResource(
-            env, hosptial_layout["imaging"])
-        self.tech = simpy.resources.resource.PriorityResource(
-            env, num_imaging_techs)
+        #Creating an imaging room
+        self.station = simpy.resources.resource.PriorityResource(env, hosptial_layout["imaging"])
+        #Add available amount of imaging tech resources
+        self.tech = simpy.resources.resource.PriorityResource(env, num_imaging_techs)
 
     def service(self, patient):
-        service_time = random.triangular(8, 20, 12)
-        yield self.env.timeout(service_time)
+        service_time = random.triangular(8, 20, 12) #8-20 min, mode = 12 min
+        yield self.env.timeout(service_time) #timeout patient & image tech for this duration of time
         print("Imaging service started for patient %s." % (patient))
 
 
-# priority resource
+#LAB DEPARTMENT OBJECT
 class Lab(object):
     def __init__(self, env, num_lab_techs):
         self.env = env
-        self.station = simpy.resources.resource.PriorityResource(
-            env, hosptial_layout["lab"])
-        self.tech = simpy.resources.resource.PriorityResource(
-            env, num_lab_techs)
+        #Initialize lab room objects as specified in dictionary
+        self.station = simpy.resources.resource.PriorityResource(env, hosptial_layout["lab"])
+        #create number of available lab techs for use
+        self.tech = simpy.resources.resource.PriorityResource(env, num_lab_techs)
 
     def service(self, patient):
-        service_time = random.triangular(4, 10, 6)
-        yield self.env.timeout(service_time)
+        service_time = random.triangular(4, 10, 6) #between 4-10 min, mode = 6 min.
+        yield self.env.timeout(service_time) #time out patient & lab resource for service
         print("Lab service started for patient %s." % (patient))
 
-
+#REGISTRATION SERVICE
 def wait_for_registration(registration, patient, env):
-    print('Patient {} enters line for registration at {}'.format(
-        patient.id,  get_time(env)))
+    print('Patient {} enters line for registration at {}'.format(patient.id,  get_time(env)))
+    #Request use of registration desk (is clerk available?)
     with registration.desk.request() as request:
-        yield request
+        yield request #if clerk room & later clerk available, yield request
         print('Patient {} enters the registration at {}. Waiting for registration clerk..'.format(
             patient.id,  get_time(env)))
         with registration.clerk.request() as request:
             yield request
             print("Registration clerk has arrived for service of patient {} at {}".format(
                 patient.id, get_time(env)))
-            yield env.process(registration.service(patient.id))
+            yield env.process(registration.service(patient.id)) #end process & release patient
     print("Patient {} finished registration service at {}".format(
         patient.id, get_time(env)))
 
-
+#DECIDE WHERE PATIENT IS GOING & WHAT THEY'RE DOING
 def patient(env, patient, registration, ED, imaging, lab):
+    #Patient purpose is to strictly visit the lab
     if (patient.purpose == "lab_out"):
-        if (lab.station.count >= 5 and patient.prob_balking > random.randrange(0, 1)):
+        #If there all lab stations are full, and there is a queue, will the patient balk?
+        if (lab.station.count >= hosptial_layout["lab"] and patient.prob_balking > random.randrange(0, 1)):
             print('Patient {} is balking from lab at {}'.format(
                 patient.id,  get_time(env)))
-        else:
-            yield env.process(wait_for_registration(
-                registration, patient, env))
-            with lab.station.request(priority=patient.priority) as request:
-                print("Patient {} begins waiting for lab at {}.".format(
-                    patient.id, get_time(env)))
-                results = yield request | env.timeout(patient.reneging_threshold)
-                if request in results:
-                    print("Patient {} enters the lab at {}. Waiting for tech".format(
-                        patient.id, get_time(env)))
-                    with lab.tech.request(priority=patient.priority) as request:
-                        yield request
-                        print("Lab tech has arrived for service of patient {} at {}.".format(
-                            patient.id, get_time(env)))
-                        yield env.process(lab.service(patient.id))
-                        print("Patient {} finished lab service at {}.".format(
-                            patient.id, get_time(env)))
-                else:
+        else: # Patient does not balk
+            yield env.process(wait_for_registration(registration, patient, env)) #register
+            with lab.station.request(priority=patient.priority) as request: #join queue
+                print("Patient {} begins waiting for lab at {}.".format(patient.id, get_time(env)))
+                results = yield request | env.timeout(patient.reneging_threshold) #does the patient renege from queue
+                if request in results: #lab room is available, patient can enter
+                    print("Patient {} enters the lab at {}. Waiting for tech".format(patient.id, get_time(env)))
+                    with lab.tech.request(priority=patient.priority) as request: 
+                        yield request#lab tech available
+                        print("Lab tech has arrived for service of patient {} at {}.".format( patient.id, get_time(env)))
+                        yield env.process(lab.service(patient.id)) #put patient into service with lab tech
+                        print("Patient {} finished lab service at {}.".format( patient.id, get_time(env)))
+
+                else: #Patient gets sick of waiting and reneges
                     print('Patient {} reneged from lab'.format(patient.id))
+
+    #Patient purpose is to strictly visit the imaging department
     elif (patient.purpose == "img_out"):
-        if (imaging.station.count >= 5 and patient.prob_balking > random.randrange(0, 1)):
-            print('Patient {} is balking from imaging at {}'.format(
-                patient.id,  get_time(env)))
-        else:
-            yield env.process(wait_for_registration(
-                registration, patient, env))
+        if (imaging.station.count >= hosptial_layout["imaging"] and patient.prob_balking > random.randrange(0, 1)):
+            print('Patient {} is balking from imaging at {}'.format(patient.id,  get_time(env))) #Patient balks
+
+        else: #Don't balk from system
+            yield env.process(wait_for_registration(registration, patient, env)) #try to register
             with imaging.station.request(priority=patient.priority) as request:
                 results = yield request | env.timeout(patient.reneging_threshold)
                 if request in results:
@@ -289,10 +288,12 @@ def patient(env, patient, registration, ED, imaging, lab):
                         yield env.process(imaging.service(patient.id))
                         print("Patient {} finished imaging service at {}.".format
                               (patient.id, get_time(env)))
-                else:
+
+                else: #Patient reneges from service with imaging
                     print('Patient {} reneged from imaging'.format(patient.id))
+
     elif (patient.purpose == "em_mod"):
-        if (ED.room.count >= 5 and patient.prob_balking > random.randrange(0, 1)):
+        if (ED.room.count >= hosptial_layout["ED"] and patient.prob_balking > random.randrange(0, 1)):
             print('Patient {} is balking from ED at {}'.format(
                 patient.id,  get_time(env)))
         else:
