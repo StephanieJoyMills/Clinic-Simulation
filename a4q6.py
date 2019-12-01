@@ -69,31 +69,34 @@ class ExamRoom(object):
 
 def patient(env, patient, registration, exam_room, staff):
     global time_in_syst
-    print("Patient {} arrives in system at {}".format(patient.id, env.now))
-    time_in_syst[patient.id] = env.now
+    print("Patient id: {} type: {} arrives in system at {}".format(
+        patient.id, patient.purpose, env.now))
+    time_in_syst[patient.id, patient.purpose] = env.now
     # When patient first arrives they enter the registration
     with registration.desk.request() as request:
         yield request
         print("Patient %s enters the registration at %.2f." %
-              (patient.id, env.now))
-        yield env.process(registration.service(patient.id))
+              (patient.id, patient.purpose, env.now))
+        yield env.process(registration.service(patient))
         print("Patient %s finished registration service. Leaving registration at %.2f." %
-              (patient.id, env.now))
+              (patient.id, patient.purpose, env.now))
     # After registration the patient goes to a room
     with exam_room.room.request() as request:
         yield request
         print("Patient %s enters the exam room at %.2f." %
-              (patient.id, env.now))
+              (patient.id, patient.purpose, env.now))
         # Patient waits until doctor is available
         doc = yield staff.get()
-        print("Doctors arrived for treatment of Patient {}".format(patient.id))
-        yield env.process(exam_room.service(patient.id))
+        print(
+            "Doctors arrived for treatment of Patient id: {} type: {}".format(patient.id, patient.purpose))
+        yield env.process(exam_room.service(patient))
         print("Patient %s finished exam room service. Leaving exam room at %.2f." %
-              (patient.id, env.now))
+              (patient.id, patient.purpose, env.now))
         staff.put(doc)
     # Keep track of how long patient was in  service
-    time_in_syst[patient.id] = env.now - time_in_syst[patient.id]
-    print(time_in_syst[patient.id])
+    time_in_syst[patient.id, patient.purpose] = env.now - \
+        time_in_syst[patient.id, patient.purpose]
+    print(time_in_syst[patient.id, patient.purpose])
 
 
 def setup(env, registration, exam_room, staff):
@@ -170,6 +173,6 @@ for i, time in enumerate(time_in_syst):
         count = i
         break
     sum = sum + time
-    print('Patient {} was in system for {} minutes'.format(i + 1, time))
+    print('Patient id: {} type: {} was in system for {} minutes'.format(i + 1, time))
 avg = sum / count
 writeAvg("avgs", avg)

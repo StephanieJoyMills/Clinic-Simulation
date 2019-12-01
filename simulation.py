@@ -175,9 +175,9 @@ class ED(object):
         else: #SERIOUS
             service_time = random.randint(4, 7)
 
-        print('Nurse prep service started for patient {}'.format(patient.id,  get_time(env)))
+        print('Nurse prep service started for patient id: {} type: {}'.format(patient.id, patient.purpose,  get_time(env)))
         yield self.env.timeout(service_time) #Timeout nurse for service on patient
-        print('Nurse prep service completed for patient {}'.format(patient.id,  get_time(env))) #nurse released
+        print('Nurse prep service completed for patient id: {} type: {}'.format(patient.id, patient.purpose,  get_time(env))) #nurse released
 
     #DOCTORS FIRST EXAMINATION ON PATIENT
     def init_exam(self, patient):
@@ -186,9 +186,9 @@ class ED(object):
         else: #Serious Exam
             service_time = random.randint(5, 15)
 
-        print("Doctor inital exam started for patient {}".format(patient.id))
+        print("Doctor inital exam started for patient id: {} type: {}".format(patient.id, patient.purpose))
         yield self.env.timeout(service_time) #timeout doctor for duration of examination
-        print("Doctor inital exam completed for patient {}".format(patient.id))
+        print("Doctor inital exam completed for patient id: {} type: {}".format(patient.id, patient.purpose))
 
     #DOCTORS FINAL EXAMINATION ON PATIENT
     def final_exam(self, patient):
@@ -196,9 +196,9 @@ class ED(object):
             service_time = random.randint(2, 5)
         else: #serious exam
             service_time = random.randint(2, 5)
-        print("Doctor final exam started for patient {}".format(patient.id))
+        print("Doctor final exam started for patient id: {} type: {}".format(patient.id, patient.purpose))
         yield self.env.timeout(service_time) #timeout doctor & patient for duration of examination
-        print("Doctor final exam completed for patient {}".format(patient.id))
+        print("Doctor final exam completed for patient id: {} type: {}".format(patient.id, patient.purpose))
 
 
 #IMAGING DEPARTMENT OBJECT
@@ -212,9 +212,9 @@ class Imaging(object):
 
     def service(self, patient):
         service_time = random.triangular(8, 20, 12) #8-20 min, mode = 12 min
-        print("Imaging service started for patient %s." % (patient))
+        print("Imaging service started for patient id: {} type: {}".format(patient.id, patient.purpose))
         yield self.env.timeout(service_time) #timeout patient & image tech for this duration of time
-        print("Imaging service completed for patient %s." % (patient))
+        print("Imaging service completed for patient id: {} type: {}".format(patient.id, patient.purpose))
 
 
 #LAB DEPARTMENT OBJECT
@@ -228,25 +228,25 @@ class Lab(object):
 
     def service(self, patient):
         service_time = random.triangular(4, 10, 6) #between 4-10 min, mode = 6 min.
-        print("Lab service started for patient %s." % (patient))
+        print("Lab service started for patient id: {} type: {}".format(patient.id, patient.purpose))
         yield self.env.timeout(service_time) #time out patient & lab resource for service
-        print("Lab service completed for patient %s." % (patient))
+        print("Lab service completed for patient id: {} type: {}".format(patient.id, patient.purpose))
 
 #REGISTRATION SERVICE
 def wait_for_registration(registration, patient, env):
-    print('Patient {} enters line for registration at {}'.format(patient.id,  get_time(env)))
+    print('Patient id: {} type: {} enters line for registration at {}'.format(patient.id, patient.purpose,  get_time(env)))
     #Request use of registration desk (is clerk available?)
     with registration.desk.request() as request:
         yield request #if clerk room & later clerk available, yield request
-        print('Patient {} enters the registration at {}. Waiting for registration clerk..'.format(
-            patient.id,  get_time(env)))
+        print('Patient id: {} type: {} enters the registration at {}. Waiting for registration clerk..'.format(
+            patient.id, patient.purpose,  get_time(env)))
         with registration.clerk.request() as request:
             yield request
-            print("Registration clerk has arrived for service of patient {} at {}".format(
-                patient.id, get_time(env)))
-            yield env.process(registration.service(patient.id)) #end process & release patient
-    print("Patient {} finished registration service at {}".format(
-        patient.id, get_time(env)))
+            print("Registration clerk has arrived for service of patient id: {} type: {} at {}".format(
+                patient.id, patient.purpose, get_time(env)))
+            yield env.process(registration.service(patient)) #end process & release patient
+    print("Patient id: {} type: {} finished registration service at {}".format(
+        patient.id, patient.purpose, get_time(env)))
 
 #DECIDE WHERE PATIENT IS GOING & WHAT THEY'RE DOING
 def patient(env, patient, registration, ED, imaging, lab):
@@ -254,191 +254,191 @@ def patient(env, patient, registration, ED, imaging, lab):
     if (patient.purpose == "lab_out"):
         #If there all lab stations are full, and there is a queue, will the patient balk?
         if (lab.station.count >= hosptial_layout["lab"] and patient.prob_balking > random.randrange(0, 1)):
-            print('Patient {} who arrived for lab service is balking from registration at {}'.format(
-                patient.id,  get_time(env)))
+            print('Patient id: {} type: {} who arrived for lab service is balking from registration at {}'.format(
+                patient.id, patient.purpose,  get_time(env)))
         else: # Patient does not balk
             yield env.process(wait_for_registration(registration, patient, env)) #register
             with lab.station.request(priority=patient.priority) as request: #join queue
-                print("Patient {} begins waiting for lab at {}.".format(patient.id, get_time(env)))
+                print("Patient id: {} type: {} begins waiting for lab at {}.".format(patient.id, patient.purpose, get_time(env)))
                 results = yield request | env.timeout(patient.reneging_threshold) #does the patient renege from queue
                 if request in results: #lab room is available, patient can enter
-                    print("Patient {} enters the lab at {}. Waiting for tech".format(patient.id, get_time(env)))
+                    print("Patient id: {} type: {} enters the lab at {}. Waiting for tech".format(patient.id, patient.purpose, get_time(env)))
                     with lab.tech.request(priority=patient.priority) as request: 
                         yield request#lab tech available
-                        print("Lab tech has arrived for service of patient {} at {}.".format( patient.id, get_time(env)))
-                        yield env.process(lab.service(patient.id)) #put patient into service with lab tech
-                        print("Patient {} finished lab service at {}.".format( patient.id, get_time(env)))
+                        print("Lab tech has arrived for service of patient id: {} type: {} at {}.".format( patient.id, patient.purpose, get_time(env)))
+                        yield env.process(lab.service(patient)) #put patient into service with lab tech
+                        print("Patient id: {} type: {} finished lab service at {}.".format( patient.id, patient.purpose, get_time(env)))
 
                 else: #Patient gets sick of waiting and reneges
-                    print('Patient {} reneged from lab'.format(patient.id))
+                    print('Patient id: {} type: {} reneged from lab'.format(patient.id, patient.purpose))
 
     #Patient purpose is to strictly visit the imaging department
     elif (patient.purpose == "img_out"):
         if (imaging.station.count >= hosptial_layout["imaging"] and patient.prob_balking > random.randrange(0, 1)):
-            print('Patient {} who arrived for imaging is balking from registration at {}'.format(patient.id,  get_time(env))) #Patient balks
+            print('Patient id: {} type: {} who arrived for imaging is balking from registration at {}'.format(patient.id, patient.purpose,  get_time(env))) #Patient balks
 
         else: #Don't balk from system
             yield env.process(wait_for_registration(registration, patient, env)) #try to register
             with imaging.station.request(priority=patient.priority) as request:
                 results = yield request | env.timeout(patient.reneging_threshold)
                 if request in results:
-                    print("Patient {} enters the imaging at {}.".format(
-                        patient.id, get_time(env)))
+                    print("Patient id: {} type: {} enters the imaging at {}.".format(
+                        patient.id, patient.purpose, get_time(env)))
                     with imaging.tech.request(priority=patient.priority) as request:
                         yield request
-                        print("Imaging tech has arrived for service of patient {} at {}".format(
-                            patient.id, get_time(env)))
-                        yield env.process(imaging.service(patient.id))
-                        print("Patient {} finished imaging service at {}.".format
-                              (patient.id, get_time(env)))
+                        print("Imaging tech has arrived for service of patient id: {} type: {} at {}".format(
+                            patient.id, patient.purpose, get_time(env)))
+                        yield env.process(imaging.service(patient))
+                        print("Patient id: {} type: {} finished imaging service at {}.".format
+                              (patient.id, patient.purpose, get_time(env)))
 
                 else: #Patient reneges from service with imaging
-                    print('Patient {} reneged from imaging'.format(patient.id))
+                    print('Patient id: {} type: {} reneged from imaging'.format(patient.id, patient.purpose))
 
     elif (patient.purpose == "em_mod"):
         if (ED.room.count >= hosptial_layout["ED"] and patient.prob_balking > random.randrange(0, 1)):
-            print('Patient {} who arrived to ED as moderate is balking from registration at {}'.format(patient.id,  get_time(env))) # Patient Balks
+            print('Patient id: {} type: {} who arrived to ED as moderate is balking from registration at {}'.format(patient.id, patient.purpose,  get_time(env))) # Patient Balks
         else: #Patient waits in queue until serviced 
             yield env.process(wait_for_registration(registration, patient, env))
             with ED.room.request(priority=patient.priority) as request:
                 results = yield request | env.timeout(patient.reneging_threshold) #Does time until renege become exceeded?
                 if request in results: #Patient gets into an available ER room
-                    print("Patient {} enters the ED at {}. Waiting for nurse..".format(patient.id, get_time(env)))
+                    print("Patient id: {} type: {} enters the ED at {}. Waiting for nurse..".format(patient.id, patient.purpose, get_time(env)))
                     with ED.nurse.request(priority=patient.priority) as request: #Wait on nurse
                         yield request #Patient gets access to a nurse in their ER room
-                        print("Nurse has arrived for service of patient {} at {}".format(patient.id, get_time(env)))
+                        print("Nurse has arrived for service of patient id: {} type: {} at {}".format(patient.id, patient.purpose, get_time(env)))
                         yield env.process(ED.prep(patient)) #Nurse completes prep to serve patient
-                        print("Nurse leaves patient {} at {}. Waiting for doctor".format(patient.id, get_time(env)))
+                        print("Nurse leaves patient id: {} type: {} at {}. Waiting for doctor".format(patient.id, patient.purpose, get_time(env)))
                     with ED.doctor.request(priority=patient.priority) as request: #Wait on doctors service in room
                         yield request #Patient begins service with doctor
-                        print("Doctor has arrived for service of patient {} at {}".format(patient.id, get_time(env)))
+                        print("Doctor has arrived for service of patient id: {} type: {} at {}".format(patient.id, patient.purpose, get_time(env)))
                         yield env.process(ED.init_exam(patient)) #end service with doctor
                         referral = random.random() #determine if doc refers for lab or imaging
                         for key, value in mod_referral.items(): #check dictionary CDF percent to see if referred
                             if referral <= value:
                                 decision = key
                                 break
-                    print("Doctor refers patient to {}. Doctor leaves patient {} at {}.".format(decision, patient.id, get_time(env)))
+                    print("Doctor refers patient to {}. Doctor leaves patient id: {} type: {} at {}.".format(decision, patient.id, patient.purpose, get_time(env)))
 
                     if (decision == "dep"): #PATIENT DEPARTS SERVICE
-                        print("Patient {} departs at {}.".format(patient.id, get_time(env)))
+                        print("Patient id: {} type: {} departs at {}.".format(patient.id, patient.purpose, get_time(env)))
                     else: #PATIENT IS REFERRED
                         if (decision == "imaging"): #referred to imaging
-                            print("Patient {} is referred to imaging and begins wait at {}.".format(patient.id, get_time(env)))
+                            print("Patient id: {} type: {} is referred to imaging and begins wait at {}.".format(patient.id, patient.purpose, get_time(env)))
                             with imaging.station.request(priority=patient.priority) as request:
                                 yield request
-                                print("Patient {} who is referred to imaging enters at {}.".format(
-                                    patient.id, get_time(env)))
+                                print("Patient id: {} type: {} who is referred to imaging enters at {}.".format(
+                                    patient.id, patient.purpose, get_time(env)))
                                 with imaging.tech.request(priority=patient.priority) as request:
                                     yield request
-                                    print("Imaging tech has arrived for service of referred patient {} at {}".format(
-                                        patient.id, get_time(env)))
-                                    yield env.process(imaging.service(patient.id))
-                                    print("Patient {} finished referred imaging service at {} and returns to room.".format
-                                          (patient.id, get_time(env)))
+                                    print("Imaging tech has arrived for service of referred patient id: {} type: {} at {}".format(
+                                        patient.id, patient.purpose, get_time(env)))
+                                    yield env.process(imaging.service(patient))
+                                    print("Patient id: {} type: {} finished referred imaging service at {} and returns to room.".format
+                                          (patient.id, patient.purpose, get_time(env)))
                             wait = random.randint(10, 20)
                         else: #referred to lab
-                            print("Patient {} is referred to lab and begins service at {}.".format(
-                                patient.id, get_time(env)))
+                            print("Patient id: {} type: {} is referred to lab and begins service at {}.".format(
+                                patient.id, patient.purpose, get_time(env)))
                             with lab.station.request(priority=patient.priority) as request:
                                 yield request
-                                print("Patient {} who is referred to lab enters at {}. Waiting for tech".format(
-                                    patient.id, get_time(env)))
+                                print("Patient id: {} type: {} who is referred to lab enters at {}. Waiting for tech".format(
+                                    patient.id, patient.purpose, get_time(env)))
                                 with lab.tech.request(priority=patient.priority) as request:
                                     yield request
-                                    print("Lab tech has arrived for referred service of patient {} at {}.".format(
-                                        patient.id, get_time(env)))
-                                    yield env.process(lab.service(patient.id))
-                                    print("Patient {} finished referred lab service at {} and return to room.".format(
-                                        patient.id, get_time(env)))
+                                    print("Lab tech has arrived for referred service of patient id: {} type: {} at {}.".format(
+                                        patient.id, patient.purpose, get_time(env)))
+                                    yield env.process(lab.service(patient))
+                                    print("Patient id: {} type: {} finished referred lab service at {} and return to room.".format(
+                                        patient.id, patient.purpose, get_time(env)))
                             wait = random.randint(4, 20)
-                        print("Patient {}'s diagnostic results will be available in {} minutes.".format(patient.id, wait))
+                        print("Patient id: {} type: {}'s diagnostic results will be available in {} minutes.".format(patient.id, patient.purpose, wait))
                         env.timeout(wait)
-                        print("Patient {}'s diagnostic results are available now! Begin waiting for doctor at {}.".format(patient.id, get_time(env)))
+                        print("Patient id: {} type: {}'s diagnostic results are available now! Begin waiting for doctor at {}.".format(patient.id, patient.purpose, get_time(env)))
                         with ED.doctor.request(priority=patient.priority) as request:
                             yield request
-                            print("Doctor has arrived for service of patient {} at {}".format(
-                                patient.id, get_time(env)))
+                            print("Doctor has arrived for service of patient id: {} type: {} at {}".format(
+                                patient.id, patient.purpose, get_time(env)))
                             yield env.process(ED.final_exam(patient))
-                        print("Patient {} departs clinic at {}".format(
-                            patient.id, get_time(env)))
+                        print("Patient id: {} type: {} departs clinic at {}".format(
+                            patient.id, patient.purpose, get_time(env)))
                 else:
-                    print('Patient {} reneged from ED at {}'.format(
-                        patient.id, get_time(env)))
+                    print('Patient id: {} type: {} reneged from ED at {}'.format(
+                        patient.id, patient.purpose, get_time(env)))
     elif (patient.purpose == "em_ser"):
-        print("Patient {} enters queue for ED at {}.".format(
-            patient.id, get_time(env)))
+        print("Patient id: {} type: {} enters queue for ED at {}.".format(
+            patient.id, patient.purpose, get_time(env)))
         with ED.room.request(priority=patient.priority) as request:
             yield request
-            print("Patient {} enters the ED at {}. Waiting for nurse..".format(
-                patient.id, get_time(env)))
+            print("Patient id: {} type: {} enters the ED at {}. Waiting for nurse..".format(
+                patient.id, patient.purpose, get_time(env)))
             with ED.nurse.request(priority=patient.priority) as request:
                 yield request
-                print("Nurse has arrived for service of patient {} at {}".format(
-                    patient.id, get_time(env)))
+                print("Nurse has arrived for service of patient id: {} type: {} at {}".format(
+                    patient.id, patient.purpose, get_time(env)))
                 yield env.process(ED.prep(patient))
-                print("Nurse leaves patient {} at {}. Waiting for doctor".format(
-                    patient.id, get_time(env)))
+                print("Nurse leaves patient id: {} type: {} at {}. Waiting for doctor".format(
+                    patient.id, patient.purpose, get_time(env)))
             with ED.doctor.request(priority=patient.priority) as request:
                 yield request
-                print("Doctor has arrived for service of patient {} at {}".format(
-                    patient.id, get_time(env)))
+                print("Doctor has arrived for service of patient id: {} type: {} at {}".format(
+                    patient.id, patient.purpose, get_time(env)))
                 yield env.process(ED.init_exam(patient))
                 referral = random.random()
                 for key, value in ser_referral.items():
                     if referral <= value:
                         decision = key
-            print("Doctor refers patient to {}. Doctor leaves patient {} at {}.".format(
-                decision, patient.id, get_time(env)))
+            print("Doctor refers patient to {}. Doctor leaves patient id: {} type: {} at {}.".format(
+                decision, patient.id, patient.purpose, get_time(env)))
             if (decision == "dep"):
-                print("Patient {} departs at {}.".format(
-                    patient.id, get_time(env)))
+                print("Patient id: {} type: {} departs at {}.".format(
+                    patient.id, patient.purpose, get_time(env)))
             else:
                 if (decision == "imaging"):
-                    print("Patient {} begins wait for imaging at {}.".format(
-                        patient.id, get_time(env)))
+                    print("Patient id: {} type: {} begins wait for imaging at {}.".format(
+                        patient.id, patient.purpose, get_time(env)))
                     with imaging.station.request(priority=patient.priority) as request:
                         yield request
-                        print("Patient {} enters the imaging at {}.".format(
-                            patient.id, get_time(env)))
+                        print("Patient id: {} type: {} enters the imaging at {}.".format(
+                            patient.id, patient.purpose, get_time(env)))
                         with imaging.tech.request(priority=patient.priority) as request:
                             yield request
-                            print("Imaging tech has arrived for service of patient {} at {}".format(
-                                patient.id, get_time(env)))
-                            yield env.process(imaging.service(patient.id))
-                            print("Patient {} finished imaging service at {} and returns to room.".format
-                                  (patient.id, get_time(env)))
+                            print("Imaging tech has arrived for service of patient id: {} type: {} at {}".format(
+                                patient.id, patient.purpose, get_time(env)))
+                            yield env.process(imaging.service(patient))
+                            print("Patient id: {} type: {} finished imaging service at {} and returns to room.".format
+                                  (patient.id, patient.purpose, get_time(env)))
                     wait = random.randint(10, 20)
                 else:
-                    print("Patient {} begins waiting for lab at {}.".format(
-                        patient.id, get_time(env)))
+                    print("Patient id: {} type: {} begins waiting for lab at {}.".format(
+                        patient.id, patient.purpose, get_time(env)))
                     with lab.station.request(priority=patient.priority) as request:
                         yield request
-                        print("Patient {} enters the lab at {}. Waiting for tech".format(
-                            patient.id, get_time(env)))
+                        print("Patient id: {} type: {} enters the lab at {}. Waiting for tech".format(
+                            patient.id, patient.purpose, get_time(env)))
                         with lab.tech.request(priority=patient.priority) as request:
                             yield request
-                            print("Lab tech has arrived for service of patient {} at {}.".format(
-                                patient.id, get_time(env)))
-                            yield env.process(lab.service(patient.id))
-                            print("Patient {} finished lab service at {} and return to room.".format(
-                                patient.id, get_time(env)))
+                            print("Lab tech has arrived for service of patient id: {} type: {} at {}.".format(
+                                patient.id, patient.purpose, get_time(env)))
+                            yield env.process(lab.service(patient))
+                            print("Patient id: {} type: {} finished lab service at {} and return to room.".format(
+                                patient.id, patient.purpose, get_time(env)))
                     wait = random.randint(4, 20)
-                print("Patient {}'s diagnostic results will be available in {} minutes.".format(
-                    patient.id, wait))
+                print("Patient id: {} type: {}'s diagnostic results will be available in {} minutes.".format(
+                    patient.id, patient.purpose, wait))
                 env.timeout(wait)
-                print("Patient {}'s diagnostic results are available now! Begin witing for doctor at {}.".format(
-                    patient.id, get_time(env)))
+                print("Patient id: {} type: {}'s diagnostic results are available now! Begin witing for doctor at {}.".format(
+                    patient.id, patient.purpose, get_time(env)))
                 with ED.doctor.request(priority=patient.priority) as request:
                     yield request
-                    print("Doctor has arrived for service of patient {} at {}".format(
-                        patient.id, get_time(env)))
+                    print("Doctor has arrived for service of patient id: {} type: {} at {}".format(
+                        patient.id, patient.purpose, get_time(env)))
                     yield env.process(ED.final_exam(patient))
-                print("Patient {} finishes treatment and proceeds to registration at {}".format(
-                    patient.id, get_time(env)))
+                print("Patient id: {} type: {} finishes treatment and proceeds to registration at {}".format(
+                    patient.id, patient.purpose, get_time(env)))
                 yield env.process(wait_for_registration(registration, patient, env))
-                print("Patient {} departs clinic at {}".format(
-                    patient.id, get_time(env)))
+                print("Patient id: {} type: {} departs clinic at {}".format(
+                    patient.id, patient.purpose, get_time(env)))
 
 
 def get_index_by_time(time):
