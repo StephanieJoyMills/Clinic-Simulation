@@ -105,6 +105,52 @@ capital_room_cost = {
     "registration": 30000
 }
 
+# VARIABLES USED FOR STATISTICS
+patientStats = []
+
+balkingStats = { 
+    "em_ser": 0, 
+    "em_mod": 0,
+    "img_in": 0, 
+    "img_out": 0, 
+    "lab_in": 0, 
+    "lab_out": 0
+}
+
+renegingStats = {
+    "em_ser": 0,
+    "em_mod": 0,
+    "img_in": 0,
+    "img_out": 0,
+    "lab_in": 0,
+    "lab_out": 0,
+}
+
+VAT = { 
+    "em_ser": [0,0], 
+    "em_mod": [0,0],
+    "img_in": 0,
+    "img_out": [0,0],
+    "lab_in": 0,
+    "lab_out": [0,0],
+}
+
+staffUtilTime = {
+    "doctor": 0,
+    "nurse": 0,
+    "imaging_tech": 0,
+    "lab_tech": 0,
+    "registration": 0
+}
+
+operatingTime = 0
+
+roomUtilTime = {
+    "registration": 0, 
+    "ED": 0, 
+    "imaging": 0, 
+    "lab": 0, 
+}
 
 def get_time(env):
   # Week: Day:   Hour:   Min:
@@ -142,6 +188,13 @@ class Patient(object):
         self.purpose = purpose #Reason patient is visiting the clinc (which department: ED, lab etc.)
         self.prob_balking = prob_balking #Probability the patient balks from the clinic prior to entering queue
         self.reneging_threshold = reneging_threshold #Prob patient leaves while waiting in queue
+        # Stats
+        self.start =  None
+        self.regitrationWaitTime = None
+        self.treatmentWaitTime = None
+        self.treatmentTime = None
+        self.serviceTime = None
+
 
 
 #CREATE REGISTRATION OBJECT
@@ -152,10 +205,12 @@ class Registration(object):
         self.clerk = simpy.Resource(env, num_clerks) #create registration clerk object for registration desk
 
     def service(self, patient):
+        temp = self.env.now
         service_time = random.randrange(3, 8) #registration time varies uniformly between 3-8 minutes
         print("Registration service started for patient %s." % (patient))
         yield self.env.timeout(service_time) #timeout patient object for this amount of time
         print("Registration service completed for patient %s." % (patient))
+        staffUtilTime["registration"] =  staffUtilTime["registration"] +  self.env.now - temp
 
 
 #CREATE PRIORITY RESOURCE
@@ -175,9 +230,11 @@ class ED(object):
         else: #SERIOUS
             service_time = random.randint(4, 7)
 
+        temp = self.env.now
         print('Nurse prep service started for patient id: {} type: {}'.format(patient.id, patient.purpose,  get_time(env)))
         yield self.env.timeout(service_time) #Timeout nurse for service on patient
         print('Nurse prep service completed for patient id: {} type: {}'.format(patient.id, patient.purpose,  get_time(env))) #nurse released
+        staffUtilTime["nurse"] = staffUtilTime["nurse"] + self.env.now - temp
 
     #DOCTORS FIRST EXAMINATION ON PATIENT
     def init_exam(self, patient):
@@ -186,9 +243,11 @@ class ED(object):
         else: #Serious Exam
             service_time = random.randint(5, 15)
 
+        temp = self.env.now
         print("Doctor inital exam started for patient id: {} type: {}".format(patient.id, patient.purpose))
         yield self.env.timeout(service_time) #timeout doctor for duration of examination
         print("Doctor inital exam completed for patient id: {} type: {}".format(patient.id, patient.purpose))
+        staffUtilTime["doctor"] = staffUtilTime["doctor"] + self.env.now - temp
 
     #DOCTORS FINAL EXAMINATION ON PATIENT
     def final_exam(self, patient):
@@ -196,10 +255,11 @@ class ED(object):
             service_time = random.randint(2, 5)
         else: #serious exam
             service_time = random.randint(2, 5)
+        temp = self.env.now
         print("Doctor final exam started for patient id: {} type: {}".format(patient.id, patient.purpose))
         yield self.env.timeout(service_time) #timeout doctor & patient for duration of examination
         print("Doctor final exam completed for patient id: {} type: {}".format(patient.id, patient.purpose))
-
+        staffUtilTime["doctor"] = staffUtilTime["doctor"] + self.env.now - temp
 
 #IMAGING DEPARTMENT OBJECT
 class Imaging(object):
@@ -211,10 +271,12 @@ class Imaging(object):
         self.tech = simpy.resources.resource.PriorityResource(env, num_imaging_techs)
 
     def service(self, patient):
+        temp = self.env.now
         service_time = random.triangular(8, 20, 12) #8-20 min, mode = 12 min
         print("Imaging service started for patient id: {} type: {}".format(patient.id, patient.purpose))
         yield self.env.timeout(service_time) #timeout patient & image tech for this duration of time
         print("Imaging service completed for patient id: {} type: {}".format(patient.id, patient.purpose))
+        staffUtilTime["imaging_tech"] = staffUtilTime["imaging_tech"] + self.env.now - temp
 
 
 #LAB DEPARTMENT OBJECT
@@ -227,10 +289,12 @@ class Lab(object):
         self.tech = simpy.resources.resource.PriorityResource(env, num_lab_techs)
 
     def service(self, patient):
+        temp = self.env.now
         service_time = random.triangular(4, 10, 6) #between 4-10 min, mode = 6 min.
         print("Lab service started for patient id: {} type: {}".format(patient.id, patient.purpose))
         yield self.env.timeout(service_time) #time out patient & lab resource for service
         print("Lab service completed for patient id: {} type: {}".format(patient.id, patient.purpose))
+        staffUtilTime["lab_tech"] = staffUtilTime["lab_tech"] + self.env.now - temp
 
 #REGISTRATION SERVICE
 def wait_for_registration(registration, patient, env):
@@ -238,81 +302,110 @@ def wait_for_registration(registration, patient, env):
     #Request use of registration desk (is clerk available?)
     with registration.desk.request() as request:
         yield request #if clerk room & later clerk available, yield request
+        roomAquired = env.now  
         print('Patient id: {} type: {} enters the registration at {}. Waiting for registration clerk..'.format(
             patient.id, patient.purpose,  get_time(env)))
         with registration.clerk.request() as request:
             yield request
             print("Registration clerk has arrived for service of patient id: {} type: {} at {}".format(
                 patient.id, patient.purpose, get_time(env)))
+            if (patient.purpose != "em_ser"):
+                patient.regitrationWaitTime = env.now - patient.start
             yield env.process(registration.service(patient)) #end process & release patient
+    roomUtilTime["registration"] = roomUtilTime["registration"] + env.now - roomAquired
     print("Patient id: {} type: {} finished registration service at {}".format(
         patient.id, patient.purpose, get_time(env)))
 
 #DECIDE WHERE PATIENT IS GOING & WHAT THEY'RE DOING
 def patient(env, patient, registration, ED, imaging, lab):
+    patient.start = env.now
     #Patient purpose is to strictly visit the lab
     if (patient.purpose == "lab_out"):
         #If there all lab stations are full, and there is a queue, will the patient balk?
         if (lab.station.count >= hosptial_layout["lab"] and patient.prob_balking > random.randrange(0, 1)):
             print('Patient id: {} type: {} who arrived for lab service is balking from registration at {}'.format(
                 patient.id, patient.purpose,  get_time(env)))
+            balkingStats[patient.purpose] = balkingStats[patient.purpose] + 1
+            return
         else: # Patient does not balk
             yield env.process(wait_for_registration(registration, patient, env)) #register
             with lab.station.request(priority=patient.priority) as request: #join queue
                 print("Patient id: {} type: {} begins waiting for lab at {}.".format(patient.id, patient.purpose, get_time(env)))
                 results = yield request | env.timeout(patient.reneging_threshold) #does the patient renege from queue
                 if request in results: #lab room is available, patient can enter
+                    roomAquired = env.now
                     print("Patient id: {} type: {} enters the lab at {}. Waiting for tech".format(patient.id, patient.purpose, get_time(env)))
                     with lab.tech.request(priority=patient.priority) as request: 
                         yield request#lab tech available
                         print("Lab tech has arrived for service of patient id: {} type: {} at {}.".format( patient.id, patient.purpose, get_time(env)))
+                        patient.treatmentWaitTime = env.now - patient.start
+                        patient.treatmentTime = env.now
                         yield env.process(lab.service(patient)) #put patient into service with lab tech
+                        patient.treatmentTime = env.now - patient.treatmentTime
                         print("Patient id: {} type: {} finished lab service at {}.".format( patient.id, patient.purpose, get_time(env)))
+                        roomUtilTime["lab"] = roomUtilTime["lab"] + env.now - roomAquired
 
                 else: #Patient gets sick of waiting and reneges
                     print('Patient id: {} type: {} reneged from lab'.format(patient.id, patient.purpose))
+                    renegingStats[patient.purpose] = renegingStats[patient.purpose] + 1
+                    return
 
     #Patient purpose is to strictly visit the imaging department
     elif (patient.purpose == "img_out"):
         if (imaging.station.count >= hosptial_layout["imaging"] and patient.prob_balking > random.randrange(0, 1)):
             print('Patient id: {} type: {} who arrived for imaging is balking from registration at {}'.format(patient.id, patient.purpose,  get_time(env))) #Patient balks
-
+            balkingStats[patient.purpose] = balkingStats[patient.purpose] + 1
+            return
         else: #Don't balk from system
             yield env.process(wait_for_registration(registration, patient, env)) #try to register
             with imaging.station.request(priority=patient.priority) as request:
                 results = yield request | env.timeout(patient.reneging_threshold)
                 if request in results:
+                    roomAquired = env.now
                     print("Patient id: {} type: {} enters the imaging at {}.".format(
                         patient.id, patient.purpose, get_time(env)))
                     with imaging.tech.request(priority=patient.priority) as request:
                         yield request
                         print("Imaging tech has arrived for service of patient id: {} type: {} at {}".format(
                             patient.id, patient.purpose, get_time(env)))
+                        patient.treatmentWaitTime = env.now - patient.start
+                        patient.treatmentTime = env.now
                         yield env.process(imaging.service(patient))
+                        patient.treatmentTime =  env.now - patient.treatmentTime
                         print("Patient id: {} type: {} finished imaging service at {}.".format
                               (patient.id, patient.purpose, get_time(env)))
+                        roomUtilTime["imaging"] = roomUtilTime["imaging"] + env.now - roomAquired
 
                 else: #Patient reneges from service with imaging
                     print('Patient id: {} type: {} reneged from imaging'.format(patient.id, patient.purpose))
-
+                    renegingStats[patient.purpose] = renegingStats[patient.purpose] + 1
+                    return
     elif (patient.purpose == "em_mod"):
         if (ED.room.count >= hosptial_layout["ED"] and patient.prob_balking > random.randrange(0, 1)):
             print('Patient id: {} type: {} who arrived to ED as moderate is balking from registration at {}'.format(patient.id, patient.purpose,  get_time(env))) # Patient Balks
+            balkingStats[patient.purpose] = balkingStats[patient.purpose] + 1
+            return
         else: #Patient waits in queue until serviced 
             yield env.process(wait_for_registration(registration, patient, env))
             with ED.room.request(priority=patient.priority) as request:
                 results = yield request | env.timeout(patient.reneging_threshold) #Does time until renege become exceeded?
                 if request in results: #Patient gets into an available ER room
+                    EDAquired = env.now
                     print("Patient id: {} type: {} enters the ED at {}. Waiting for nurse..".format(patient.id, patient.purpose, get_time(env)))
                     with ED.nurse.request(priority=patient.priority) as request: #Wait on nurse
                         yield request #Patient gets access to a nurse in their ER room
                         print("Nurse has arrived for service of patient id: {} type: {} at {}".format(patient.id, patient.purpose, get_time(env)))
+                        patient.treatmentWaitTime = env.now - patient.start
+                        patient.treatmentTime = env.now
                         yield env.process(ED.prep(patient)) #Nurse completes prep to serve patient
+                        patient.treatmentTime = env.now - patient.treatmentTime
                         print("Nurse leaves patient id: {} type: {} at {}. Waiting for doctor".format(patient.id, patient.purpose, get_time(env)))
                     with ED.doctor.request(priority=patient.priority) as request: #Wait on doctors service in room
                         yield request #Patient begins service with doctor
                         print("Doctor has arrived for service of patient id: {} type: {} at {}".format(patient.id, patient.purpose, get_time(env)))
+                        temp = env.now
                         yield env.process(ED.init_exam(patient)) #end service with doctor
+                        patient.treatmentTime = patient.treatmentTime + env.now - temp
                         referral = random.random() #determine if doc refers for lab or imaging
                         for key, value in mod_referral.items(): #check dictionary CDF percent to see if referred
                             if referral <= value:
@@ -327,31 +420,41 @@ def patient(env, patient, registration, ED, imaging, lab):
                             print("Patient id: {} type: {} is referred to imaging and begins wait at {}.".format(patient.id, patient.purpose, get_time(env)))
                             with imaging.station.request(priority=patient.priority) as request:
                                 yield request
+                                ImagingAquired = env.now
                                 print("Patient id: {} type: {} who is referred to imaging enters at {}.".format(
                                     patient.id, patient.purpose, get_time(env)))
                                 with imaging.tech.request(priority=patient.priority) as request:
                                     yield request
                                     print("Imaging tech has arrived for service of referred patient id: {} type: {} at {}".format(
                                         patient.id, patient.purpose, get_time(env)))
+                                    temp = env.now
                                     yield env.process(imaging.service(patient))
+                                    VAT["img_in"] = VAT["img_in"] + env.now - temp
+                                    patient.treatmentTime = patient.treatmentTime + env.now - temp
                                     print("Patient id: {} type: {} finished referred imaging service at {} and returns to room.".format
                                           (patient.id, patient.purpose, get_time(env)))
                             wait = random.randint(10, 20)
+                            roomUtilTime["imaging"] = roomUtilTime["imaging"] + env.now - ImagingAquired
                         else: #referred to lab
                             print("Patient id: {} type: {} is referred to lab and begins service at {}.".format(
                                 patient.id, patient.purpose, get_time(env)))
                             with lab.station.request(priority=patient.priority) as request:
                                 yield request
+                                LabAquired = env.now
                                 print("Patient id: {} type: {} who is referred to lab enters at {}. Waiting for tech".format(
                                     patient.id, patient.purpose, get_time(env)))
                                 with lab.tech.request(priority=patient.priority) as request:
                                     yield request
                                     print("Lab tech has arrived for referred service of patient id: {} type: {} at {}.".format(
                                         patient.id, patient.purpose, get_time(env)))
+                                    temp = env.now
                                     yield env.process(lab.service(patient))
+                                    VAT["lab_in"] = VAT["lab_in"] + env.now - temp
+                                    patient.treatmentTime = patient.treatmentTime + env.now - temp
                                     print("Patient id: {} type: {} finished referred lab service at {} and return to room.".format(
                                         patient.id, patient.purpose, get_time(env)))
                             wait = random.randint(4, 20)
+                            roomUtilTime["lab"] = roomUtilTime["lab"] + env.now - LabAquired
                         print("Patient id: {} type: {}'s diagnostic results will be available in {} minutes.".format(patient.id, patient.purpose, wait))
                         env.timeout(wait)
                         print("Patient id: {} type: {}'s diagnostic results are available now! Begin waiting for doctor at {}.".format(patient.id, patient.purpose, get_time(env)))
@@ -359,31 +462,42 @@ def patient(env, patient, registration, ED, imaging, lab):
                             yield request
                             print("Doctor has arrived for service of patient id: {} type: {} at {}".format(
                                 patient.id, patient.purpose, get_time(env)))
+                            temp = env.now
                             yield env.process(ED.final_exam(patient))
+                            patient.treatmentTime = patient.treatmentTime + env.now - temp
                         print("Patient id: {} type: {} departs clinic at {}".format(
                             patient.id, patient.purpose, get_time(env)))
+                        roomUtilTime["ED"] = roomUtilTime["ED"] + env.now - EDAquired
                 else:
                     print('Patient id: {} type: {} reneged from ED at {}'.format(
                         patient.id, patient.purpose, get_time(env)))
+                    renegingStats[patient.purpose] = renegingStats[patient.purpose] + 1
+                    return
     elif (patient.purpose == "em_ser"):
         print("Patient id: {} type: {} enters queue for ED at {}.".format(
             patient.id, patient.purpose, get_time(env)))
         with ED.room.request(priority=patient.priority) as request:
             yield request
+            EDAquired = env.now
             print("Patient id: {} type: {} enters the ED at {}. Waiting for nurse..".format(
                 patient.id, patient.purpose, get_time(env)))
             with ED.nurse.request(priority=patient.priority) as request:
                 yield request
                 print("Nurse has arrived for service of patient id: {} type: {} at {}".format(
                     patient.id, patient.purpose, get_time(env)))
-                yield env.process(ED.prep(patient))
+                patient.treatmentWaitTime = env.now - patient.start
+                patient.treatmentTime = env.now
+                yield env.process(ED.prep(patient)) #Nurse completes prep to serve patient
+                patient.treatmentTime = env.now - patient.treatmentTime
                 print("Nurse leaves patient id: {} type: {} at {}. Waiting for doctor".format(
                     patient.id, patient.purpose, get_time(env)))
             with ED.doctor.request(priority=patient.priority) as request:
                 yield request
                 print("Doctor has arrived for service of patient id: {} type: {} at {}".format(
                     patient.id, patient.purpose, get_time(env)))
-                yield env.process(ED.init_exam(patient))
+                temp = env.now
+                yield env.process(ED.init_exam(patient)) #end service with doctor
+                patient.treatmentTime = patient.treatmentTime + env.now - temp
                 referral = random.random()
                 for key, value in ser_referral.items():
                     if referral <= value:
@@ -399,31 +513,41 @@ def patient(env, patient, registration, ED, imaging, lab):
                         patient.id, patient.purpose, get_time(env)))
                     with imaging.station.request(priority=patient.priority) as request:
                         yield request
+                        ImagingAquired = env.now
                         print("Patient id: {} type: {} enters the imaging at {}.".format(
                             patient.id, patient.purpose, get_time(env)))
                         with imaging.tech.request(priority=patient.priority) as request:
                             yield request
                             print("Imaging tech has arrived for service of patient id: {} type: {} at {}".format(
                                 patient.id, patient.purpose, get_time(env)))
+                            temp = env.now
                             yield env.process(imaging.service(patient))
+                            VAT["img_in"] = VAT["img_in"] + env.now - temp
+                            patient.treatmentTime = patient.treatmentTime + env.now - temp
                             print("Patient id: {} type: {} finished imaging service at {} and returns to room.".format
                                   (patient.id, patient.purpose, get_time(env)))
                     wait = random.randint(10, 20)
+                    roomUtilTime["imaging"] = roomUtilTime["imaging"] + env.now - ImagingAquired
                 else:
                     print("Patient id: {} type: {} begins waiting for lab at {}.".format(
                         patient.id, patient.purpose, get_time(env)))
                     with lab.station.request(priority=patient.priority) as request:
                         yield request
+                        LabAquired = env.now
                         print("Patient id: {} type: {} enters the lab at {}. Waiting for tech".format(
                             patient.id, patient.purpose, get_time(env)))
                         with lab.tech.request(priority=patient.priority) as request:
                             yield request
                             print("Lab tech has arrived for service of patient id: {} type: {} at {}.".format(
                                 patient.id, patient.purpose, get_time(env)))
+                            temp = env.now
                             yield env.process(lab.service(patient))
+                            VAT["lab_in"] = VAT["lab_in"] + env.now - temp
+                            patient.treatmentTime = patient.treatmentTime + env.now - temp
                             print("Patient id: {} type: {} finished lab service at {} and return to room.".format(
                                 patient.id, patient.purpose, get_time(env)))
                     wait = random.randint(4, 20)
+                    roomUtilTime["lab"] = roomUtilTime["lab"] + env.now - LabAquired
                 print("Patient id: {} type: {}'s diagnostic results will be available in {} minutes.".format(
                     patient.id, patient.purpose, wait))
                 env.timeout(wait)
@@ -433,12 +557,18 @@ def patient(env, patient, registration, ED, imaging, lab):
                     yield request
                     print("Doctor has arrived for service of patient id: {} type: {} at {}".format(
                         patient.id, patient.purpose, get_time(env)))
+                    temp = env.now
                     yield env.process(ED.final_exam(patient))
+                    patient.treatmentTime = patient.treatmentTime + env.now - temp
                 print("Patient id: {} type: {} finishes treatment and proceeds to registration at {}".format(
                     patient.id, patient.purpose, get_time(env)))
                 yield env.process(wait_for_registration(registration, patient, env))
                 print("Patient id: {} type: {} departs clinic at {}".format(
                     patient.id, patient.purpose, get_time(env)))
+                roomUtilTime["ED"] = roomUtilTime["ED"] + env.now - EDAquired
+    patient.serviceTime = env.now - patient.start
+    patientStats.append(patient)
+
 
 
 def get_index_by_time(time):
@@ -484,12 +614,15 @@ def setup(env):
                                                                          ][time_indexes["day_index"]] == None else iat[key][time_indexes["week_day_index"]
                                                                                                                             ][time_indexes["day_index"]] + env.now
     shift_change = [False, False, False]
+    global operatingTime
+    temp = 60*8
 
     while True:
         time = get_time(env)
         time_indexes = get_index_by_time(time)
 
         if (time_indexes["day_index"] == 0 and shift_change[0] == False):
+            print(patient_timeouts)
             print("First shift staffing at {}".format(time))
             registration = Registration(env, staff_schedule["registration"][0])
             ed = ED(env, staff_schedule["nurse"]
@@ -521,6 +654,8 @@ def setup(env):
             if value != None and value < minTime:
                 minTime = value
                 next_timeout = key
+        print(patient_timeouts[next_timeout])
+        print(env.now)
         yield env.timeout(patient_timeouts[next_timeout] - env.now)
         priority = (
             2 if next_timeout == "em_ser" else 1 if next_timeout == "em_mod" else 0
@@ -539,14 +674,20 @@ def setup(env):
         env.process(patient(env, new_patient, registration, ed, imaging, lab))
 
         if (time_indexes["day_index"] == None):
+            operatingTime =  operatingTime + env.now - temp
             print("Clinic is now closed".format(time))
+            temp = env.now
             shift_change = [False, False, False]
             # clinic closes for 12 hours
             yield env.timeout(60 * 12)
             time = get_time(env)
             time_indexes = get_index_by_time(time)
             print("Clinic is now open!".format(time))
-
+            temp = env.now - temp
+            for key, value in patient_timeouts.items():
+                if value != None:
+                    patient_timeouts[key] = value + temp
+            
         patient_timeouts[next_timeout] = iat[next_timeout][time_indexes["week_day_index"]
                                                            ][time_indexes["day_index"]] + env.now
         patients_arrived += 1
@@ -570,6 +711,55 @@ def get_arrival_times():
                 arrival_rate[key].append(arr)
     return arrival_rate
 
+def printStats():
+    print("Patient Statistics: ")
+    for patient in patientStats:
+        if (patient.serviceTime != None):
+            print("\tPatient ID: {}".format(patient.id))
+            print("\tPatient type: {}".format(patient.purpose))
+            print("\tTime until treatment: {}".format(patient.treatmentWaitTime))
+            print("\tTime until registration: {}".format(patient.regitrationWaitTime))
+            print("\tTotal service time: {} \n".format(patient.serviceTime))
+            VAT[patient.purpose][0] = VAT[patient.purpose][0] + patient.treatmentTime
+            VAT[patient.purpose][1] = VAT[patient.purpose][1] + patient.serviceTime
+        
+    print("Patient Type Statistics: ")
+    for purpose, value in VAT.items():
+        print("\tPatient Type: {}".format(purpose))
+        if ("in" not in purpose):
+            vat = value[0]/value[1]
+        else:
+            vat = value
+        print("\t% VAT: {}".format(vat))
+        print("\tNumber of balks: {}".format(balkingStats[purpose]))
+        print("\tTime until renegs: {}\n".format(renegingStats[purpose]))
+
+    print("Total Clinic Operating Time: {}\n".format(operatingTime))
+
+    totalCost = 0
+    
+    print("Staff Statistics: ")
+    for staff, value in staffUtilTime.items():
+        print("\tStaff: {}".format(staff))
+        print("\tTime: {}".format(value))
+        print("\t% Util: {}".format(value / operatingTime))
+        print("\tHourly Cost: {}".format(costs[staff]))
+        cost = value / 60 * costs[staff]
+        totalCost = totalCost + cost
+        print("\tCost: {}\n".format(cost))
+
+    print("Facilities Statistics: ")
+    for facility, value in roomUtilTime.items():
+        print("\tFacility: {}".format(facility))
+        print("\tTime: {}".format(value))
+        print("\t% Util: {}".format(value / operatingTime))
+        print("\tHourly Cost: {}\n".format(hourly_room_cost[facility]))
+        cost = value / 60 * hourly_room_cost[facility]
+        totalCost = totalCost + cost
+
+    print("Total Operating Cost: {}\n".format(totalCost))
+
+
 
 if __name__ == '__main__':
     # Create an environment
@@ -578,4 +768,33 @@ if __name__ == '__main__':
 
     # Set-up and Execute!
     env.process(setup(env))
-    env.run(until=1000)
+    env.run(until=100000)
+
+    printStats()
+
+# costs = {
+#     "doctor": 200,
+#     "nurse": 100,
+#     "imaging_tech": 90,
+#     "lab_tech": 80,
+#     "registration": 40
+# }
+
+# #The cost of rooms associated with operation
+# #Operating rooms per hour
+# hourly_room_cost = {
+#     "ED": 500,
+#     "imaging": 400,
+#     "lab": 300,
+#     "registration": 50
+# }
+
+# total time for each staff
+# total time for each room
+# Total operating cost
+# 
+
+
+
+
+
