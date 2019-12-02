@@ -728,11 +728,19 @@ def printStats():
     "lab_in": 0,
     "lab_out": 0,
     }
-    num_patients = 0
+
+    num_patients = { 
+    "em_ser": 0, 
+    "em_mod": 0,
+    "img_in": 0,
+    "img_out": 0,
+    "lab_in": 0,
+    "lab_out": 0,
+    }
     print("Patient Statistics: ")
     for patient in patientStats:
         if (patient.serviceTime != None):
-            num_patients = num_patients + 1
+            num_patients[patient.purpose] = num_patients[patient.purpose] + 1
             print("\tPatient ID: {}".format(patient.id))
             print("\tPatient type: {}".format(patient.purpose))
             print("\tTime until treatment: {}".format(patient.treatmentWaitTime))
@@ -752,10 +760,10 @@ def printStats():
         else:
             vat = value
         print("\t% VAT: {}".format(vat))
-        print("\tNumber of balks: {}".format(balkingStats[purpose]))
-        print("\tNumber of renegs: {}".format(renegingStats[purpose]))
-        print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients))
-        print("\tAvg time until treatment: {}\n".format(time_until_treatment[purpose]/ num_patients))
+        print("\t% of balks: {}".format(balkingStats[purpose]/num_patients[patient.purpose]))
+        print("\t% of renegs: {}".format(renegingStats[purpose]/num_patients[patient.purpose]))
+        print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[patient.purpose]))
+        print("\tAvg time until treatment: {}\n".format(time_until_treatment[purpose]/ num_patients[patient.purpose]))
 
     print("Total Clinic Operating Time: {}\n".format(operatingTime))
 
