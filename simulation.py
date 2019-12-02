@@ -712,9 +712,43 @@ def get_arrival_times():
     return arrival_rate
 
 def printStats():
+    time_until_treatment = { 
+    "em_ser": 0, 
+    "em_mod": 0,
+    "img_in": 0,
+    "img_out": 0,
+    "lab_in": 0,
+    "lab_out": 0,
+    }
+    time_until_registration = { 
+    "em_ser": 0, 
+    "em_mod": 0,
+    "img_in": 0,
+    "img_out": 0,
+    "lab_in": 0,
+    "lab_out": 0,
+    }
+
+    service_time = { 
+    "em_ser": 0, 
+    "em_mod": 0,
+    "img_in": 0,
+    "img_out": 0,
+    "lab_in": 0,
+    "lab_out": 0,
+    }
+    num_patients = { 
+    "em_ser": 0, 
+    "em_mod": 0,
+    "img_in": 0,
+    "img_out": 0,
+    "lab_in": 0,
+    "lab_out": 0,
+    }
     print("Patient Statistics: ")
     for patient in patientStats:
         if (patient.serviceTime != None):
+            num_patients[patient.purpose] = num_patients[patient.purpose] + 1
             print("\tPatient ID: {}".format(patient.id))
             print("\tPatient type: {}".format(patient.purpose))
             print("\tTime until treatment: {}".format(patient.treatmentWaitTime))
@@ -722,6 +756,10 @@ def printStats():
             print("\tTotal service time: {} \n".format(patient.serviceTime))
             VAT[patient.purpose][0] = VAT[patient.purpose][0] + patient.treatmentTime
             VAT[patient.purpose][1] = VAT[patient.purpose][1] + patient.serviceTime
+            time_until_treatment[patient.purpose] = time_until_treatment[patient.purpose] + patient.treatmentWaitTime
+            service_time[patient.purpose] = service_time[patient.purpose] + patient.serviceTime
+            if (patient.purpose != "em_ser"):
+                time_until_registration[patient.purpose] = time_until_registration[patient.purpose] + patient.regitrationWaitTime
         
     print("Patient Type Statistics: ")
     for purpose, value in VAT.items():
@@ -731,9 +769,11 @@ def printStats():
         else:
             vat = value
         print("\t% VAT: {}".format(vat))
-        print("\tNumber of balks: {}".format(balkingStats[purpose]))
-        print("\tTime until renegs: {}\n".format(renegingStats[purpose]))
-        print("\tTotal time in system (Sojourn time): {}\n" .format(value[1]))
+        print("\t% of balks: {}".format(balkingStats[purpose]/num_patients[purpose]))
+        print("\t% of renegs: {}".format(renegingStats[purpose]/num_patients[purpose]))
+        print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[purpose]))
+        print("\tAvg time until treatment: {}".format(time_until_treatment[purpose]/ num_patients[purpose]))
+        print("\tAvg total service time: {}\n".format(service_time[purpose] / num_patients[purpose]))
 
     print("Total Clinic Operating Time: {}\n".format(operatingTime))
 
