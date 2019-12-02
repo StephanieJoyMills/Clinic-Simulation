@@ -514,7 +514,7 @@ def patient(env, patient, registration, ED, imaging, lab):
                         patient.id, patient.purpose, get_time(env)))
                     with imaging.station.request(priority=patient.priority) as request:
                         yield request
-                        ImagingAqued = env.nowir
+                        ImagingAquired = env.now
                         print("Patient id: {} type: {} enters the imaging at {}.".format(
                             patient.id, patient.purpose, get_time(env)))
                         with imaging.tech.request(priority=patient.priority) as request:
