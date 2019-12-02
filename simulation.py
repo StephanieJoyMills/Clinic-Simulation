@@ -729,6 +729,14 @@ def printStats():
     "lab_out": 0,
     }
 
+    service_time = { 
+    "em_ser": 0, 
+    "em_mod": 0,
+    "img_in": 0,
+    "img_out": 0,
+    "lab_in": 0,
+    "lab_out": 0,
+    }
     num_patients = { 
     "em_ser": 0, 
     "em_mod": 0,
@@ -749,6 +757,7 @@ def printStats():
             VAT[patient.purpose][0] = VAT[patient.purpose][0] + patient.treatmentTime
             VAT[patient.purpose][1] = VAT[patient.purpose][1] + patient.serviceTime
             time_until_treatment[patient.purpose] = time_until_treatment[patient.purpose] + patient.treatmentWaitTime
+            service_time[patient.purpose] = service_time[patient.purpose] + patient.serviceTime
             if (patient.purpose != "em_ser"):
                 time_until_registration[patient.purpose] = time_until_registration[patient.purpose] + patient.regitrationWaitTime
         
@@ -760,10 +769,11 @@ def printStats():
         else:
             vat = value
         print("\t% VAT: {}".format(vat))
-        print("\t% of balks: {}".format(balkingStats[purpose]/num_patients[patient.purpose]))
-        print("\t% of renegs: {}".format(renegingStats[purpose]/num_patients[patient.purpose]))
-        print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[patient.purpose]))
-        print("\tAvg time until treatment: {}\n".format(time_until_treatment[purpose]/ num_patients[patient.purpose]))
+        print("\t% of balks: {}".format(balkingStats[purpose]/num_patients[purpose]))
+        print("\t% of renegs: {}".format(renegingStats[purpose]/num_patients[purpose]))
+        print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[purpose]))
+        print("\tAvg time until treatment: {}".format(time_until_treatment[purpose]/ num_patients[purpose]))
+        print("\tAvg total service time: {}\n".format(service_time[purpose] / num_patients[purpose]))
 
     print("Total Clinic Operating Time: {}\n".format(operatingTime))
 
