@@ -189,11 +189,11 @@ class Patient(object):
         self.prob_balking = prob_balking #Probability the patient balks from the clinic prior to entering queue
         self.reneging_threshold = reneging_threshold #Prob patient leaves while waiting in queue
         # Stats
-        self.start =  None
-        self.regitrationWaitTime = None
-        self.treatmentWaitTime = None
-        self.treatmentTime = None
-        self.serviceTime = None
+        self.start =  None #arrival time
+        self.regitrationWaitTime = None #Wait time for registration 
+        self.treatmentWaitTime = None #Wait time for treatment once in room
+        self.treatmentTime = None #total treatment time
+        self.serviceTime = None  #total service time (treatment + wait)
 
 
 
@@ -733,6 +733,7 @@ def printStats():
         print("\t% VAT: {}".format(vat))
         print("\tNumber of balks: {}".format(balkingStats[purpose]))
         print("\tTime until renegs: {}\n".format(renegingStats[purpose]))
+        print("\tTotal time in system (Sojourn time): {}\n" .format(value[1]))
 
     print("Total Clinic Operating Time: {}\n".format(operatingTime))
 
