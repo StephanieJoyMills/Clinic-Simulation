@@ -513,8 +513,8 @@ def patient(env, patient, registration, ED, imaging, lab):
                     print("Patient id: {} type: {} begins wait for imaging at {}.".format(
                         patient.id, patient.purpose, get_time(env)))
                     with imaging.station.request(priority=patient.priority) as request:
-                        yield request
-                        ImagingAquired = env.now
+                        yield request #Request imaging room
+                        ImagingAquired = env.now #i'm quitting commenting now, it's all the same below
                         print("Patient id: {} type: {} enters the imaging at {}.".format(
                             patient.id, patient.purpose, get_time(env)))
                         with imaging.tech.request(priority=patient.priority) as request:
@@ -527,9 +527,9 @@ def patient(env, patient, registration, ED, imaging, lab):
                             patient.treatmentTime = patient.treatmentTime + env.now - temp
                             print("Patient id: {} type: {} finished imaging service at {} and returns to room.".format
                                   (patient.id, patient.purpose, get_time(env)))
-                    wait = random.randint(10, 20)
+                    wait = random.randint(10, 20) #generate a waiting time for results
                     roomUtilTime["imaging"] = roomUtilTime["imaging"] + env.now - ImagingAquired
-                else:
+                else: #PATIENT REFERRED TO LAB
                     print("Patient id: {} type: {} begins waiting for lab at {}.".format(
                         patient.id, patient.purpose, get_time(env)))
                     with lab.station.request(priority=patient.priority) as request:
@@ -547,12 +547,12 @@ def patient(env, patient, registration, ED, imaging, lab):
                             patient.treatmentTime = patient.treatmentTime + env.now - temp
                             print("Patient id: {} type: {} finished lab service at {} and return to room.".format(
                                 patient.id, patient.purpose, get_time(env)))
-                    wait = random.randint(4, 20)
+                    wait = random.randint(4, 20) #GENERATE RANDOM WAITING TIME FOR RESULTS
                     roomUtilTime["lab"] = roomUtilTime["lab"] + env.now - LabAquired
                 print("Patient id: {} type: {}'s diagnostic results will be available in {} minutes.".format(
                     patient.id, patient.purpose, wait))
                 env.timeout(wait)
-                print("Patient id: {} type: {}'s diagnostic results are available now! Begin witing for doctor at {}.".format(
+                print("Patient id: {} type: {}'s diagnostic results are available now! Begin waiting for doctor at {}.".format(
                     patient.id, patient.purpose, get_time(env)))
                 with ED.doctor.request(priority=patient.priority) as request:
                     yield request
@@ -622,16 +622,18 @@ def setup(env):
         time = get_time(env)
         time_indexes = get_index_by_time(time)
 
+        #SHIFT BETWEEN [8 - 12)
         if (time_indexes["day_index"] == 0 and shift_change[0] == False):
             print(patient_timeouts)
             print("First shift staffing at {}".format(time))
             registration = Registration(env, staff_schedule["registration"][0])
-            ed = ED(env, staff_schedule["nurse"]
+            ed = ED(env, staff_schedule["nurse"] #Schedule number of people into ED
                     [0], staff_schedule["doctor"][0])
-            imaging = Imaging(env, staff_schedule["imaging_tech"][0])
-            lab = Lab(env, staff_schedule["lab_tech"][0])
+            imaging = Imaging(env, staff_schedule["imaging_tech"][0]) #schedule into imaging   
+            lab = Lab(env, staff_schedule["lab_tech"][0]) #schedule into lab
             shift_change[0] = True
 
+        #SHIFT BETWEEN [12 - 16)
         elif (time_indexes["day_index"] == 1 and shift_change[1] == False):
             print("Second shift change at {}".format(time))
             registration = Registration(env, staff_schedule["registration"][1])
@@ -640,6 +642,8 @@ def setup(env):
             imaging = Imaging(env, staff_schedule["imaging_tech"][1])
             lab = Lab(env, staff_schedule["lab_tech"][1])
             shift_change[1] = True
+
+        #SHIFT BETWEEN [16 - 20)
         elif (time_indexes["day_index"] == 2 and shift_change[2] == False):
             print("Third shift change at {}".format(time))
             registration = Registration(env, staff_schedule["registration"][2])
@@ -649,7 +653,7 @@ def setup(env):
             lab = Lab(env, staff_schedule["lab_tech"][2])
             shift_change[2] = True
 
-        minTime = 99999
+        minTime = 99999 #big value
         # Change shift of staff based on time on new days re-start
         for key, value in patient_timeouts.items():
             if value != None and value < minTime:
