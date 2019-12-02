@@ -789,7 +789,7 @@ def printStats():
             dfToPrint = dfToPrint.append({'Event List': "% of balks: {}".format(balkingStats[purpose]/num_patients[purpose])}, ignore_index = True)
 
             print("\t% of reneges: {}".format(renegingStats[purpose]/num_patients[purpose]))
-            dfToPrint = dfToPrint.append({'Event List': "% of balks: {}".format(balkingStats[purpose]/num_patients[purpose])},
+            dfToPrint = dfToPrint.append({'Event List': "% of reneges: {}".format(renegingStats[purpose]/num_patients[purpose])},
                  ignore_index = True)
 
             print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[purpose]))
@@ -798,10 +798,11 @@ def printStats():
 
             print("\tAvg time until treatment: {}".format(time_until_treatment[purpose]/ num_patients[purpose]))
             dfToPrint = dfToPrint.append({'Event List': "Avg time until treatment: {}".
-            format(time_until_treatment[purpose]/ num_patients[purpose]) }, ignore_index = True)
+                format(time_until_treatment[purpose]/ num_patients[purpose]) }, ignore_index = True)
 
             print("\tAvg total service time: {}\n".format(service_time[purpose] / num_patients[purpose]))
-            dfToPrint = dfToPrint.append({'Event List': "Avg total service time: {}".format(service_time[purpose] / num_patients[purpose])}, ignore_index = True)
+            dfToPrint = dfToPrint.append({'Event List': "Avg total service time: {}".
+                format(service_time[purpose] / num_patients[purpose])}, ignore_index = True)
 
         else: #num_patients for a given purpose (ED )
             print("\t Statistics irrelevant and not considered")
@@ -856,7 +857,8 @@ def printStats():
     print("Total Operating Cost: {}\n".format(totalCost))
     dfToPrint = dfToPrint.append({'Event List': "Total Operating Cost: {}".format(totalCost)}, ignore_index = True)
 
-    dfToPrint.to_csv(r'C:\Users\Hayes\Desktop\333 project\Clinic-Simulation\export_dataframe.csv')
+    #UPDATE THE OUTPUT FILE NAME HERE:
+    dfToPrint.to_csv(r'C:\Users\Hayes\Desktop\333 project\Clinic-Simulation\OutputNumber4444.csv')
 
 
 if __name__ == '__main__':
@@ -866,7 +868,12 @@ if __name__ == '__main__':
 
     # Set-up and Execute!
     env.process(setup(env))
-    env.run(until=100000)
+    RUNWEEKS = 4
+    RUNDAYS = 4
+    RUNHOURS = 4
+    RUNMINUTES = 4
+
+    env.run(until = RUNWEEKS*10080 + RUNDAYS* 1440 + RUNHOURS*60 + RUNMINUTES)#100000) #DURATION OF SIMULATION RUNTIME IN MINUTES
 
     printStats()
 
