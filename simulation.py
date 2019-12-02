@@ -3,6 +3,7 @@ import random #ability to generate random numbers
 import simpy #for simulation features
 import math #abilitity to run mathematical calculations
 from functools import partial, wraps
+import pandas as pd #required to export to csv
 
 RANDOM_SEED = 720 #set seed for randomization
 IAT_MIN = 8 #minimum interarrival time
@@ -716,6 +717,7 @@ def get_arrival_times():
                 arrival_rate[key].append(arr)
     return arrival_rate
 
+#FUNCTION TO PRINT STATS TO THE CONSOLE AND CSV
 def printStats():
     time_until_treatment = { 
     "em_ser": 0, 
@@ -725,6 +727,7 @@ def printStats():
     "lab_in": 0,
     "lab_out": 0,
     }
+
     time_until_registration = { 
     "em_ser": 0, 
     "em_mod": 0,
@@ -742,6 +745,7 @@ def printStats():
     "lab_in": 0,
     "lab_out": 0,
     }
+
     num_patients = { 
     "em_ser": 0, 
     "em_mod": 0,
@@ -750,6 +754,7 @@ def printStats():
     "lab_in": 0,
     "lab_out": 0,
     }
+
     print("Patient Statistics: ")
     for patient in patientStats:
         if (patient.serviceTime != None):
@@ -765,52 +770,93 @@ def printStats():
             service_time[patient.purpose] = service_time[patient.purpose] + patient.serviceTime
             if (patient.purpose != "em_ser"):
                 time_until_registration[patient.purpose] = time_until_registration[patient.purpose] + patient.registrationWaitTime
-        
+
+    dfToPrint = pd.DataFrame(data = None, columns = ['Event List']) #create df to append to    
     print("Patient Type Statistics: ")
     for purpose, value in VAT.items():
         print("\tPatient Type: {}".format(purpose))
+        dfToPrint = dfToPrint.append({'Event List': "Patient Type: {}".format(purpose)}, ignore_index = True)
         if ("in" not in purpose):
             vat = value[0]/value[1]
         else:
             vat = value
 
         print("\t% VAT: {}".format(vat))
-        print(num_patients[purpose])
+        dfToPrint = dfToPrint.append({'Event List': "% VAT: {}".format(vat)}, ignore_index = True)
+
         if (num_patients[purpose] > 0):
             print("\t% of balks: {}".format(balkingStats[purpose]/num_patients[purpose]))
+            dfToPrint = dfToPrint.append({'Event List': "% of balks: {}".format(balkingStats[purpose]/num_patients[purpose])}, ignore_index = True)
+
             print("\t% of reneges: {}".format(renegingStats[purpose]/num_patients[purpose]))
+            dfToPrint = dfToPrint.append({'Event List': "% of balks: {}".format(balkingStats[purpose]/num_patients[purpose])},
+                 ignore_index = True)
+
             print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[purpose]))
+            dfToPrint = dfToPrint.append({'Event List': "Avg time until registration: {}"
+                .format(time_until_registration[purpose]/ num_patients[purpose])}, ignore_index = True)
+
             print("\tAvg time until treatment: {}".format(time_until_treatment[purpose]/ num_patients[purpose]))
+            dfToPrint = dfToPrint.append({'Event List': "Avg time until treatment: {}".
+            format(time_until_treatment[purpose]/ num_patients[purpose]) }, ignore_index = True)
+
             print("\tAvg total service time: {}\n".format(service_time[purpose] / num_patients[purpose]))
+            dfToPrint = dfToPrint.append({'Event List': "Avg total service time: {}".format(service_time[purpose] / num_patients[purpose])}, ignore_index = True)
+
         else: #num_patients for a given purpose (ED )
             print("\t Statistics irrelevant and not considered")
-    
+            dfToPrint = dfToPrint.append({'Event List': "Statistics irrelevant and not considered"}, ignore_index = True)
+
     print()
     print("Total Clinic Operating Time: {}\n".format(operatingTime))
+    dfToPrint = dfToPrint.append({'Event List': "Total Clinic Operating Time: {}".format(operatingTime)}, ignore_index = True)
 
     totalCost = 0
     
     print("Staff Statistics: ")
+    dfToPrint = dfToPrint.append({'Event List': "Staff Statistics:".format(operatingTime)}, ignore_index = True)
+
     for staff, value in staffUtilTime.items():
         print("\tStaff: {}".format(staff))
+        dfToPrint = dfToPrint.append({'Event List': "Staff: {}".format(staff)}, ignore_index = True)
+
         print("\tTime: {}".format(value))
+        dfToPrint = dfToPrint.append({'Event List': "Time: {}".format(value)}, ignore_index = True)
+
         print("\t% Util: {}".format(value / operatingTime))
+        dfToPrint = dfToPrint.append({'Event List': "% Util: {}".format(value / operatingTime)}, ignore_index = True)
+
         print("\tHourly Cost: {}".format(costs[staff]))
+        dfToPrint = dfToPrint.append({'Event List': "Hourly Cost: {}".format(costs[staff])}, ignore_index = True)
+
         cost = value / 60 * costs[staff]
         totalCost = totalCost + cost
         print("\tCost: {}\n".format(cost))
+        dfToPrint = dfToPrint.append({'Event List': "Cost: {}\n".format(cost)}, ignore_index = True)
 
     print("Facilities Statistics: ")
+    dfToPrint = dfToPrint.append({'Event List': "Facilities Statistics: "}, ignore_index = True)
+
     for facility, value in roomUtilTime.items():
         print("\tFacility: {}".format(facility))
+        dfToPrint = dfToPrint.append({'Event List': "Facility: {}".format(facility)}, ignore_index = True)
+
         print("\tTime: {}".format(value))
+        dfToPrint = dfToPrint.append({'Event List': "Time: {}".format(value)}, ignore_index = True)
+
         print("\t% Util: {}".format(value / operatingTime))
+        dfToPrint = dfToPrint.append({'Event List': "% Util: {}".format(value / operatingTime)}, ignore_index = True)
+
         print("\tHourly Cost: {}\n".format(hourly_room_cost[facility]))
+        dfToPrint = dfToPrint.append({'Event List': "Hourly Cost: {}".format(hourly_room_cost[facility])}, ignore_index = True)
+
         cost = value / 60 * hourly_room_cost[facility]
         totalCost = totalCost + cost
 
     print("Total Operating Cost: {}\n".format(totalCost))
+    dfToPrint = dfToPrint.append({'Event List': "Total Operating Cost: {}".format(totalCost)}, ignore_index = True)
 
+    dfToPrint.to_csv(r'C:\Users\Hayes\Desktop\333 project\Clinic-Simulation\export_dataframe.csv')
 
 
 if __name__ == '__main__':
