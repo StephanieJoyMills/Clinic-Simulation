@@ -411,31 +411,34 @@ def patient(env, patient, registration, ED, imaging, lab):
                             if referral <= value:
                                 decision = key
                                 break
-                    print("Doctor refers patient to {}. Doctor leaves patient id: {} type: {} at {}.".format(decision, patient.id, patient.purpose, get_time(env)))
+                    print("Doctor refers patient to {}. Doctor leaves patient id: {} type: {} at {}.".format(
+                        decision, patient.id, patient.purpose, get_time(env)))
 
                     if (decision == "dep"): #PATIENT DEPARTS SERVICE
-                        print("Patient id: {} type: {} departs at {}.".format(patient.id, patient.purpose, get_time(env)))
+                        print("Patient id: {} type: {} departs at {}.".format(
+                            patient.id, patient.purpose, get_time(env)))
                     else: #PATIENT IS REFERRED
-                        if (decision == "imaging"): #referred to imaging
-                            print("Patient id: {} type: {} is referred to imaging and begins wait at {}.".format(patient.id, patient.purpose, get_time(env)))
+                        if (decision == "imaging"): #REFERRED TO IMAGING
+                            print("Patient id: {} type: {} is referred to imaging and begins wait at {}.".format(
+                                patient.id, patient.purpose, get_time(env)))
                             with imaging.station.request(priority=patient.priority) as request:
-                                yield request
-                                ImagingAquired = env.now
+                                yield request #patient able to get imaging done
+                                ImagingAquired = env.now #track start of imaging service because patient enters imaging room
                                 print("Patient id: {} type: {} who is referred to imaging enters at {}.".format(
                                     patient.id, patient.purpose, get_time(env)))
                                 with imaging.tech.request(priority=patient.priority) as request:
-                                    yield request
+                                    yield request #Imaging tech available and begins service on patient
                                     print("Imaging tech has arrived for service of referred patient id: {} type: {} at {}".format(
                                         patient.id, patient.purpose, get_time(env)))
-                                    temp = env.now
+                                    temp = env.now #stash current time
                                     yield env.process(imaging.service(patient))
                                     VAT["img_in"] = VAT["img_in"] + env.now - temp
                                     patient.treatmentTime = patient.treatmentTime + env.now - temp
-                                    print("Patient id: {} type: {} finished referred imaging service at {} and returns to room.".format
-                                          (patient.id, patient.purpose, get_time(env)))
+                                    print("Patient id: {} type: {} finished referred imaging service at {} and returns to room.".format(
+                                            patient.id, patient.purpose, get_time(env)))
                             wait = random.randint(10, 20)
                             roomUtilTime["imaging"] = roomUtilTime["imaging"] + env.now - ImagingAquired
-                        else: #referred to lab
+                        else: #REFERRED TO LAB
                             print("Patient id: {} type: {} is referred to lab and begins service at {}.".format(
                                 patient.id, patient.purpose, get_time(env)))
                             with lab.station.request(priority=patient.priority) as request:
@@ -768,13 +771,23 @@ def printStats():
             vat = value[0]/value[1]
         else:
             vat = value
-        print("\t% VAT: {}".format(vat))
-        print("\t% of balks: {}".format(balkingStats[purpose]/num_patients[purpose]))
-        print("\t% of renegs: {}".format(renegingStats[purpose]/num_patients[purpose]))
-        print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[purpose]))
-        print("\tAvg time until treatment: {}".format(time_until_treatment[purpose]/ num_patients[purpose]))
-        print("\tAvg total service time: {}\n".format(service_time[purpose] / num_patients[purpose]))
 
+        print("\t% VAT: {}".format(vat))
+        print(num_patients[purpose])
+        if (num_patients[purpose] > 0):
+            print("\t% of balks: {}".format(balkingStats[purpose]/num_patients[purpose]))
+            print("\t% of renegs: {}".format(renegingStats[purpose]/num_patients[purpose]))
+            print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[purpose]))
+            print("\tAvg time until treatment: {}".format(time_until_treatment[purpose]/ num_patients[purpose]))
+            print("\tAvg total service time: {}\n".format(service_time[purpose] / num_patients[purpose]))
+        else: #num_patients for a given purpose (ED )
+            print("\t% of balks: 0")
+            print("\t% of renegs: 0")
+            print("\tAvg time until registration: 0")
+            print("\tAvg time until treatment: 0")
+            print("\tAvg total service time: 0")
+    
+    print()
     print("Total Clinic Operating Time: {}\n".format(operatingTime))
 
     totalCost = 0
