@@ -394,17 +394,17 @@ def patient(env, patient, registration, ED, imaging, lab):
                     with ED.nurse.request(priority=patient.priority) as request: #Wait on nurse
                         yield request #Patient gets access to a nurse in their ER room
                         print("Nurse has arrived for service of patient id: {} type: {} at {}".format(patient.id, patient.purpose, get_time(env)))
-                        patient.treatmentWaitTime = env.now - patient.start
-                        patient.treatmentTime = env.now
+                        #patient.treatmentTime = env.now
                         yield env.process(ED.prep(patient)) #Nurse completes prep to serve patient
-                        patient.treatmentTime = env.now - patient.treatmentTime
+                        #patient.treatmentTime = env.now - patient.treatmentTime
                         print("Nurse leaves patient id: {} type: {} at {}. Waiting for doctor".format(patient.id, patient.purpose, get_time(env)))
                     with ED.doctor.request(priority=patient.priority) as request: #Wait on doctors service in room
                         yield request #Patient begins service with doctor
                         print("Doctor has arrived for service of patient id: {} type: {} at {}".format(patient.id, patient.purpose, get_time(env)))
+                        patient.treatmentWaitTime = env.now - patient.start
                         temp = env.now
                         yield env.process(ED.init_exam(patient)) #end service with doctor
-                        patient.treatmentTime = patient.treatmentTime + env.now - temp
+                        patient.treatmentTime = env.now - temp
                         referral = random.random() #determine if doc refers for lab or imaging
                         for key, value in mod_referral.items(): #check dictionary CDF percent to see if referred
                             if referral <= value:
@@ -487,19 +487,20 @@ def patient(env, patient, registration, ED, imaging, lab):
                 yield request #nurse seized for service
                 print("Nurse has arrived for service of patient id: {} type: {} at {}".format(
                     patient.id, patient.purpose, get_time(env)))
-                patient.treatmentWaitTime = env.now - patient.start #track waiting time for service
-                patient.treatmentTime = env.now #begin treatment service
+                #patient.treatmentWaitTime = env.now - patient.start #track waiting time for service
+                #patient.treatmentTime = env.now #begin treatment service
                 yield env.process(ED.prep(patient)) #Nurse completes prep to serve patient
-                patient.treatmentTime = env.now - patient.treatmentTime
+                #patient.treatmentTime = env.now - patient.treatmentTime
                 print("Nurse leaves patient id: {} type: {} at {}. Waiting for doctor".format(
                     patient.id, patient.purpose, get_time(env)))
             with ED.doctor.request(priority=patient.priority) as request: #Request doctor evaluation
-                yield request #doctor requested to sieze 
+                yield request #doctor requested to sieze
+                patient.treatmentWaitTime = env.now - patient.start #track waiting time for service
                 print("Doctor has arrived for service of patient id: {} type: {} at {}".format(
                     patient.id, patient.purpose, get_time(env)))
                 temp = env.now #track time service started
                 yield env.process(ED.init_exam(patient)) #end service with doctor
-                patient.treatmentTime = patient.treatmentTime + env.now - temp #track patient treatment time
+                patient.treatmentTime =  env.now - temp #track patient treatment time
                 referral = random.random() #generate a random number to determine if the patient is referred
                 for key, value in ser_referral.items(): #grab vals from dictionary to compare rand# against
                     if referral <= value: #if random prob (referral prob) is less than referral threshold, refer    
