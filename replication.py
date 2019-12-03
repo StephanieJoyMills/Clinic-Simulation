@@ -749,10 +749,10 @@ def runSimulation(staff_schedule):
 
     # Set-up and Execute!
     env.process(setup(env, staff_schedule))
-    RUNWEEKS = 4
-    RUNDAYS = 4
-    RUNHOURS = 4
-    RUNMINUTES = 4
+    RUNWEEKS = 52
+    RUNDAYS = 0
+    RUNHOURS = 0
+    RUNMINUTES = 0
     
 
     env.run(until = RUNWEEKS*10080 + RUNDAYS* 1440 + RUNHOURS*60 + RUNMINUTES)#100000) #DURATION OF SIMULATION RUNTIME IN MINUTES
@@ -802,7 +802,7 @@ def run_staff_schedules(max):
                                                         for l3 in range(1, max):
                                                             for r3 in range(1, max):
                                                                 avgCost = [0,0]
-                                                                replications = 2
+                                                                replications = 6
                                                                 for i in range(replications):
                                                                     staff_schedule = {
                                                                         "doctor":        [d1, d2, d3],
@@ -816,7 +816,7 @@ def run_staff_schedules(max):
                                                                 final = [avgCost[0]/replications, avgCost[1]/replications]
                                       
                                                                 final.append( staff_schedule)
-                                                                writeAvg( "q1", final)
+                                                                writeAvg( "LONGRUNBH", final)
 
                                                                   
 
@@ -827,6 +827,6 @@ def writeAvg(file_name, avg):
         writer.writerow([avg])
 
 if __name__ == '__main__':
-    max = 10
+    max = 5
     run_staff_schedules(max)
 
