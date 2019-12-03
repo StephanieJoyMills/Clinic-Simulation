@@ -6,7 +6,7 @@ from functools import partial, wraps
 import pandas as pd #required to export to csv
 import sys, os
 
-BLOCK= False
+BLOCK= True
 #RANDOM_SEED = 720 #set seed for randomization
 IAT_MIN = 8 #minimum interarrival time
 IAT_MAX = 16 #maximum interarrival time
@@ -593,7 +593,7 @@ def patient(env, patient, registration, ED, imaging, lab):
 
 
 
-def get_index_by_time(time):  
+def get_index_by_time(time):
     hour = time["hour"]
     if (hour >= 8 and hour < 12):
         day_index = 0
@@ -607,7 +607,7 @@ def get_index_by_time(time):
     week_day = time["day"]
     if (week_day <= 5):
         week_day_index = 0
-    elif (week_day == 6):
+    if (week_day == 6):
         week_day_index = 1
     else:
         week_day_index = 2
@@ -615,10 +615,10 @@ def get_index_by_time(time):
 
 def new_arrival(patient_timeouts, env): 
     iat = get_arrival_times()
-    time = get_time(env)
-    time_indexes = get_index_by_time(time)
     for key in patient_timeouts:
         if patient_timeouts[key] == None:
+            time = get_time(env)
+            time_indexes = get_index_by_time(time)
             patient_timeouts[key] = None if iat[key] == None or iat[key][time_indexes["week_day_index"]][time_indexes["day_index"]] == None else iat[key][time_indexes["week_day_index"]][time_indexes["day_index"]] + env.now
     return patient_timeouts        
 
@@ -646,23 +646,13 @@ def setup(env):
     shift_change = [False, False, False]
     global operatingTime
     temp = 60*8
-    closed = False
-    close_time = 720
-
 
     while True:
-        if (closed):
-            yield env.timeout(close_time)
-            closed = False
-            time = get_time(env)
-            time_indexes = get_index_by_time(time)
         time = get_time(env)
         time_indexes = get_index_by_time(time)
 
         #SHIFT BETWEEN [8 - 12)
         if (time_indexes["day_index"] == 0 and shift_change[0] == False):
-            print("HERE")
-            closed = False
             print(patient_timeouts)
             print("First shift staffing at {}".format(time))
             registration = Registration(env, staff_schedule["registration"][0])
@@ -671,7 +661,9 @@ def setup(env):
             imaging = Imaging(env, staff_schedule["imaging_tech"][0]) #schedule into imaging   
             lab = Lab(env, staff_schedule["lab_tech"][0]) #schedule into lab
             shift_change[0] = True
-            patient_timeouts = new_arrival(patient_timeouts, env)
+            time_indexes = get_index_by_time(time)
+
+        #SHIFT BETWEEN [12 - 16)
         elif (time_indexes["day_index"] == 1 and shift_change[1] == False):
             print("Second shift change at {}".format(time))
             registration = Registration(env, staff_schedule["registration"][1])
@@ -680,7 +672,9 @@ def setup(env):
             imaging = Imaging(env, staff_schedule["imaging_tech"][1])
             lab = Lab(env, staff_schedule["lab_tech"][1])
             shift_change[1] = True
-            patient_timeouts = new_arrival(patient_timeouts, env)
+            time_indexes = get_index_by_time(time)
+
+        #SHIFT BETWEEN [16 - 20)
         elif (time_indexes["day_index"] == 2 and shift_change[2] == False):
             print("Third shift change at {}".format(time))
             registration = Registration(env, staff_schedule["registration"][2])
@@ -689,73 +683,67 @@ def setup(env):
             imaging = Imaging(env, staff_schedule["imaging_tech"][2])
             lab = Lab(env, staff_schedule["lab_tech"][2])
             shift_change[2] = True
-            patient_timeouts = new_arrival(patient_timeouts, env)
+            time_indexes = get_index_by_time(time)
 
-        if (time_indexes["day_index"] != None):
-            minTime = 99999 #big value
-            # Change shift of staff based on time on new days re-start
-    
-            for key, value in patient_timeouts.items():
-                if value != None and value < minTime:
-                    minTime = value
-                    next_timeout = key
-            # print("boop",patient_timeouts[next_timeout] - env.now)
-            pat_timeout = patient_timeouts[next_timeout] - env.now
-            # print("next", pat_timeout)
-      
-            yield env.timeout(0 if pat_timeout < 0 else pat_timeout)
-            priority = (
-                2 if next_timeout == "em_ser" else 1 if next_timeout == "em_mod" else 0
-            )
+        minTime = 99999 #big value
+        # Change shift of staff based on time on new days re-start
+        print(patient_timeouts)
+        for key, value in patient_timeouts.items():
+            if value != None and value < minTime:
+                minTime = value
+                next_timeout = key
+        print(next_timeout)
+        print(env.now)
+        print("before", patient_timeouts[next_timeout] - env.now)
+        yield env.timeout(patient_timeouts[next_timeout] - env.now)
+        print("after")
+        priority = (
+            2 if next_timeout == "em_ser" else 1 if next_timeout == "em_mod" else 0
+        )
 
-            prob_balking = balking[next_timeout]
-            reneging_threshold = (
-                None
-                if reneging[next_timeout] == None
-                else random.randint(reneging[next_timeout][0], reneging[next_timeout][1])
-            )
+        prob_balking = balking[next_timeout]
+        reneging_threshold = (
+            None
+            if reneging[next_timeout] == None
+            else random.randint(reneging[next_timeout][0], reneging[next_timeout][1])
+        )
 
-            new_patient = Patient(env, patients_arrived, priority,
-                                next_timeout, prob_balking, reneging_threshold)
-            patients_arrived += 1
-            env.process(patient(env, new_patient, registration, ed, imaging, lab))
+        new_patient = Patient(env, patients_arrived, priority,
+                              next_timeout, prob_balking, reneging_threshold)
 
+        # event = patient(env, new_patient, registration, ed, imaging, lab)
+        try:
+            event = env.process(patient(env, new_patient, registration, ed, imaging, lab))
             enablePrint()
             iat = get_arrival_times()
             time = get_time(env)
             time_indexes = get_index_by_time(time)
-            if (time_indexes["day_index"] != None):
-                patient_timeouts[next_timeout] = None if iat[next_timeout][time_indexes["week_day_index"]][time_indexes["day_index"]] == None else iat[next_timeout][time_indexes["week_day_index"]][time_indexes["day_index"]] + env.now
-        elif time_indexes["day_index"] == None and not closed:
-            closed = True
+            if (time_indexes["day_index"] == None):
+                operatingTime =  operatingTime + env.now - temp
+                print("total optime", operatingTime)
+                print("Clinic is now closed {}".format(time))
+        except:
+            print("FORCE STOP")
             print(env.now)
-            operatingTime =  operatingTime + 720
-            print("total optime", operatingTime)
-            print("Clinic is now closed {}".format(time))
-            print(env.now)
+            temp = env.now
             shift_change = [False, False, False]
-            close_time = 720
-            if (ed.room.count != 0 or registration.desk.count != 0 or imaging.station.count != 0 or lab.station.count != 0 and hasattr(env._queue[len(env._queue) - 1][3], "_delay")):
-                print("wating for patients to leave set better timeout")
-                print("last event is", env._queue[len(env._queue) - 1][3])
-                if (hasattr(env._queue[len(env._queue) - 1][3], "_delay")):
-                    event_time = env._queue[len(env._queue) - 1][3]._delay + env._queue[len(env._queue) - 1][0]
-                    print(event_time)
-                    close_time = 720 - (event_time - env.now)
-            
-            # yield env.timeout(1) | env.timeout(2)
-            # continue
-            
-            # patient_timeouts = new_arrival(patient_timeouts, env)
-            # time = get_time(env)
-            # time_indexes = get_index_by_time(time)
-            # print("what")
-            # print("Clinic is now open! {}".format(time))
-            # temp = env.now
-            # for key, value in patient_timeouts.items():
-            #     if value != None:
-            #         patient_timeouts[key] = value + temp
-                    # get data and set set intelligent timeout
+            event.interrupt("clinic closed")
+            # clinic closes for 12 hours
+            yield env.timeout(60 * 12)
+            time = get_time(env)
+            time_indexes = get_index_by_time(time)
+            print("what")
+            print("Clinic is now open! {}".format(time))
+            temp = env.now
+            for key, value in patient_timeouts.items():
+                if value != None:
+                    patient_timeouts[key] = value + temp
+        iat = get_arrival_times()
+        time = get_time(env)
+        time_indexes = get_index_by_time(time)            
+        patient_timeouts[next_timeout] = None if iat[next_timeout][time_indexes["week_day_index"]][time_indexes["day_index"]] == None else iat[next_timeout][time_indexes["week_day_index"]][time_indexes["day_index"]] + env.now
+        # iat[next_timeout][time_indexes["week_day_index"]][time_indexes["day_index"]] + env.now
+        patients_arrived += 1
 
 
 def get_arrival_times():
@@ -955,7 +943,7 @@ if __name__ == '__main__':
     env.run(until = RUNWEEKS*10080 + RUNDAYS* 1440 + RUNHOURS*60 + RUNMINUTES)#100000) #DURATION OF SIMULATION RUNTIME IN MINUTES
     print(operatingTime)
     # getCost()
-    printStats()
+    # printStats()
 
 #end file
 # costs = {

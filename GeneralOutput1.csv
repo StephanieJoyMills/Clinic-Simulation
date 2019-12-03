@@ -1,85 +1,85 @@
 ,Event List
 0,Patient Type: em_ser
-1,% VAT: 0.531695040536273
+1,% VAT: 0.48406192022519123
 2,% of balks: 0.0
 3,% of reneges: 0.0
 4,Avg time until registration: 0.0
-5,Avg time until treatment: 8.806449974548288
-6,Avg total service time: 18.82634793373195
+5,Avg time until treatment: 9.145692736345802
+6,Avg total service time: 17.726337897636125
 7,Patient Type: em_mod
-8,% VAT: 0.5158769110451639
-9,% of balks: 0.002506265664160401
+8,% VAT: 0.47322713375137293
+9,% of balks: 0.01639344262295082
 10,% of reneges: 0.0
-11,Avg time until registration: 0.17538744821083466
-12,Avg time until treatment: 13.233719844885703
-13,Avg total service time: 30.185833474874524
+11,Avg time until registration: 0.6768149882901483
+12,Avg time until treatment: 14.586403520637107
+13,Avg total service time: 32.632327210435115
 14,Patient Type: img_in
-15,% VAT: 5903.4253392412065
+15,% VAT: 105.21730720977439
 16,Statistics irrelevant and not considered
 17,Patient Type: img_out
-18,% VAT: 0.8036999155100456
-19,% of balks: 0.4864864864864865
+18,% VAT: 0.7470483670598118
+19,% of balks: 1.5918367346938775
 20,% of reneges: 0.0
-21,Avg time until registration: 0.15358772501640716
-22,Avg time until treatment: 3.262458884062433
-23,Avg total service time: 16.608912542346847
+21,Avg time until registration: 1.0903790087464094
+22,Avg time until treatment: 4.409765026955973
+23,Avg total service time: 17.43323407601281
 24,Patient Type: lab_in
-25,% VAT: 3561.426924024585
+25,% VAT: 87.7753558695249
 26,Statistics irrelevant and not considered
 27,Patient Type: lab_out
-28,% VAT: 0.6211440493403951
-29,% of balks: 0.0
+28,% VAT: 0.5292741536113167
+29,% of balks: 0.2882882882882883
 30,% of reneges: 0.0
-31,Avg time until registration: 0.9014925373134328
-32,Avg time until treatment: 3.976354455682548
-33,Avg total service time: 10.621666260375358
-34,Total Clinic Operating Time: 3650750.000000001
+31,Avg time until registration: 1.4736164736164898
+32,Avg time until treatment: 5.967152692272977
+33,Avg total service time: 12.676492565793458
+34,Total Clinic Operating Time: 2880
 35,Staff Statistics:
 36,Staff: doctor
-37,Time: 53723.99999999971
-38,% Util: 0.014715880298568703
+37,Time: 1015.0
+38,% Util: 0.3524305555555556
 39,Hourly Cost: 200
-40,"Cost: 179079.99999999904
+40,"Cost: 3383.3333333333335
 "
 41,Staff: nurse
-42,Time: 35943.99999999984
-43,% Util: 0.009845648154488757
+42,Time: 714.0
+43,% Util: 0.24791666666666667
 44,Hourly Cost: 100
-45,"Cost: 59906.6666666664
+45,"Cost: 1190.0
 "
 46,Staff: imaging_tech
-47,Time: 43927.47181169366
-48,% Util: 0.012032451362512811
+47,Time: 743.367290613558
+48,% Util: 0.2581136425741521
 49,Hourly Cost: 90
-50,"Cost: 65891.20771754048
+50,"Cost: 1115.050935920337
 "
 51,Staff: lab_tech
-52,Time: 8013.785833168775
-53,% Util: 0.002195106713187365
+52,Time: 832.5120818302985
+53,% Util: 0.28906669507996474
 54,Hourly Cost: 80
-55,"Cost: 10685.047777558366
+55,"Cost: 1110.0161091070645
 "
 56,Staff: registration
-57,Time: 18774.999999999854
-58,% Util: 0.005142778881051797
+57,Time: 658.0
+58,% Util: 0.22847222222222222
 59,Hourly Cost: 40
-60,"Cost: 12516.66666666657
+60,"Cost: 438.6666666666667
 "
 61,Facilities Statistics: 
 62,Facility: registration
-63,Time: 18774.999999999854
-64,% Util: 0.005142778881051797
+63,Time: 658.0
+64,% Util: 0.22847222222222222
 65,Hourly Cost: 50
 66,Facility: ED
-67,Time: 37264.0761114543
-68,% Util: 0.010207238543163539
+67,Time: 904.7148169794218
+68,% Util: 0.3141370892289659
 69,Hourly Cost: 500
 70,Facility: imaging
-71,Time: 43927.47181169366
-72,% Util: 0.012032451362512811
+71,Time: 743.367290613558
+72,% Util: 0.2581136425741521
 73,Hourly Cost: 400
 74,Facility: lab
-75,Time: 8086.895203454027
-76,% Util: 0.002215132562748483
+75,Time: 1035.206345600578
+76,% Util: 0.35944664777797847
 77,Hourly Cost: 300
-78,Total Operating Cost: 987543.6778524445
+78,Total Operating Cost: 25456.504185282527
