@@ -30,7 +30,7 @@ balking = {
 #Renegeing threshold in minutes
 reneging = {
     "em_ser": None,
-    "em_mod": [90, 150],
+    "em_mod": [30, 60],
     "img_in": None,
     "img_out": [30, 90],
     "lab_in": None,
@@ -40,11 +40,11 @@ reneging = {
 #Patient arrival rates per department
 arrival_times = {
     "em_ser": [[1.5, 1, 1], [1.5, 1, 1], [1.5, 1, 0.5]],
-    "em_mod": [[3, 2, 2], [3, 2, 1], [3, 1, 0.5]],
+    "em_mod": [[3.5, 2, 2], [3.5, 2, 1.5], [2, 1.5, 0.5]],
     "img_in": None,
-    "img_out": [[12, 8, 0], [10, 5, 0], [5, 2, 0]],
+    "img_out": [[10, 6, 0], [8, 4, 0], [4, 2, 0]],
     "lab_in": None,
-    "lab_out": [[16, 10, 0], [12, 0, 0], [8, 0, 0]],
+    "lab_out": [[12, 6, 0], [8, 0, 0], [5, 0, 0]],
 }
 
 #The cost of staff resources hourly
@@ -205,7 +205,7 @@ class Registration(object):
 
     def service(self, patient):
         temp = self.env.now
-        service_time = random.randrange(3, 8) #registration time varies uniformly between 3-8 minutes
+        service_time = random.randrange(2, 5) #registration time varies uniformly between 3-8 minutes
         print("Registration service started for patient %s." % (patient))
         yield self.env.timeout(service_time) #timeout patient object for this amount of time
         print("Registration service completed for patient %s." % (patient))
