@@ -206,9 +206,9 @@ class Registration(object):
     def service(self, patient):
         temp = self.env.now
         service_time = random.randrange(2, 5) #registration time varies uniformly between 3-8 minutes
-        print("Registration service started for patient %s." % (patient))
+        print('Registration service started for patient {} of type: {}   at time {}'.format(patient.id, patient.purpose,  get_time(env)))
         yield self.env.timeout(service_time) #timeout patient object for this amount of time
-        print("Registration service completed for patient %s." % (patient))
+        print('Registration service completed for patient {}      of type: {}   at time {}'.format(patient.id, patient.purpose,  get_time(env)))
         staffUtilTime["registration"] =  staffUtilTime["registration"] +  self.env.now - temp
 
 
@@ -626,8 +626,7 @@ def setup(env):
 
         #SHIFT BETWEEN [8 - 12)
         if (time_indexes["day_index"] == 0 and shift_change[0] == False):
-            print(patient_timeouts)
-            print("First shift staffing at {}".format(time))
+            print('First shift staffing at {}'.format(time))
             registration = Registration(env, staff_schedule["registration"][0])
             ed = ED(env, staff_schedule["nurse"] #Schedule number of people into ED
                     [0], staff_schedule["doctor"][0])
@@ -637,7 +636,7 @@ def setup(env):
 
         #SHIFT BETWEEN [12 - 16)
         elif (time_indexes["day_index"] == 1 and shift_change[1] == False):
-            print("Second shift change at {}".format(time))
+            print('Second shift change at {}'.format(time))
             registration = Registration(env, staff_schedule["registration"][1])
             ed = ED(env, staff_schedule["nurse"]
                     [1], staff_schedule["doctor"][1])
@@ -647,7 +646,7 @@ def setup(env):
 
         #SHIFT BETWEEN [16 - 20)
         elif (time_indexes["day_index"] == 2 and shift_change[2] == False):
-            print("Third shift change at {}".format(time))
+            print('Third shift change at {}'.format(time))
             registration = Registration(env, staff_schedule["registration"][2])
             ed = ED(env, staff_schedule["nurse"]
                     [2], staff_schedule["doctor"][2])
@@ -661,8 +660,8 @@ def setup(env):
             if value != None and value < minTime:
                 minTime = value
                 next_timeout = key
-        print(patient_timeouts[next_timeout])
-        print(env.now)
+        #print(patient_timeouts[next_timeout])
+       # print(env.now)
         yield env.timeout(patient_timeouts[next_timeout] - env.now)
         priority = (
             2 if next_timeout == "em_ser" else 1 if next_timeout == "em_mod" else 0
@@ -826,6 +825,8 @@ def printStats():
         dfToPrint = dfToPrint.append({'Event List': "Time: {}".format(value)}, ignore_index = True)
 
         print("\t% Util: {}".format(value / operatingTime))
+        print(value)
+        print(operatingTime)
         dfToPrint = dfToPrint.append({'Event List': "% Util: {}".format(value / operatingTime)}, ignore_index = True)
 
         print("\tHourly Cost: {}".format(costs[staff]))
@@ -859,7 +860,7 @@ def printStats():
     dfToPrint = dfToPrint.append({'Event List': "Total Operating Cost: {}".format(totalCost)}, ignore_index = True)
 
     #UPDATE THE OUTPUT FILE NAME HERE:
-    dfToPrint.to_csv('GeneralOutput1.csv')
+    dfToPrint.to_csv(r'C:\Users\Hayes\Desktop\333 project\Clinic-Simulation\GeneralOutput10.csv', index= False)
 
 def getCost():
     staffCost = 0
@@ -888,14 +889,14 @@ if __name__ == '__main__':
 
     # Set-up and Execute!
     env.process(setup(env))
-    RUNWEEKS = 4
-    RUNDAYS = 4
+    RUNWEEKS = 0
+    RUNDAYS = 2
     RUNHOURS = 4
     RUNMINUTES = 4
 
     env.run(until = RUNWEEKS*10080 + RUNDAYS* 1440 + RUNHOURS*60 + RUNMINUTES)#100000) #DURATION OF SIMULATION RUNTIME IN MINUTES
     getCost()
-    # printStats()
+    +printStats()
 
 #end file
 # costs = {
