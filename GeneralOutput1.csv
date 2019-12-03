@@ -1,0 +1,85 @@
+,Event List
+0,Patient Type: em_ser
+1,% VAT: 0.531695040536273
+2,% of balks: 0.0
+3,% of reneges: 0.0
+4,Avg time until registration: 0.0
+5,Avg time until treatment: 8.806449974548288
+6,Avg total service time: 18.82634793373195
+7,Patient Type: em_mod
+8,% VAT: 0.5158769110451639
+9,% of balks: 0.002506265664160401
+10,% of reneges: 0.0
+11,Avg time until registration: 0.17538744821083466
+12,Avg time until treatment: 13.233719844885703
+13,Avg total service time: 30.185833474874524
+14,Patient Type: img_in
+15,% VAT: 5903.4253392412065
+16,Statistics irrelevant and not considered
+17,Patient Type: img_out
+18,% VAT: 0.8036999155100456
+19,% of balks: 0.4864864864864865
+20,% of reneges: 0.0
+21,Avg time until registration: 0.15358772501640716
+22,Avg time until treatment: 3.262458884062433
+23,Avg total service time: 16.608912542346847
+24,Patient Type: lab_in
+25,% VAT: 3561.426924024585
+26,Statistics irrelevant and not considered
+27,Patient Type: lab_out
+28,% VAT: 0.6211440493403951
+29,% of balks: 0.0
+30,% of reneges: 0.0
+31,Avg time until registration: 0.9014925373134328
+32,Avg time until treatment: 3.976354455682548
+33,Avg total service time: 10.621666260375358
+34,Total Clinic Operating Time: 3650750.000000001
+35,Staff Statistics:
+36,Staff: doctor
+37,Time: 53723.99999999971
+38,% Util: 0.014715880298568703
+39,Hourly Cost: 200
+40,"Cost: 179079.99999999904
+"
+41,Staff: nurse
+42,Time: 35943.99999999984
+43,% Util: 0.009845648154488757
+44,Hourly Cost: 100
+45,"Cost: 59906.6666666664
+"
+46,Staff: imaging_tech
+47,Time: 43927.47181169366
+48,% Util: 0.012032451362512811
+49,Hourly Cost: 90
+50,"Cost: 65891.20771754048
+"
+51,Staff: lab_tech
+52,Time: 8013.785833168775
+53,% Util: 0.002195106713187365
+54,Hourly Cost: 80
+55,"Cost: 10685.047777558366
+"
+56,Staff: registration
+57,Time: 18774.999999999854
+58,% Util: 0.005142778881051797
+59,Hourly Cost: 40
+60,"Cost: 12516.66666666657
+"
+61,Facilities Statistics: 
+62,Facility: registration
+63,Time: 18774.999999999854
+64,% Util: 0.005142778881051797
+65,Hourly Cost: 50
+66,Facility: ED
+67,Time: 37264.0761114543
+68,% Util: 0.010207238543163539
+69,Hourly Cost: 500
+70,Facility: imaging
+71,Time: 43927.47181169366
+72,% Util: 0.012032451362512811
+73,Hourly Cost: 400
+74,Facility: lab
+75,Time: 8086.895203454027
+76,% Util: 0.002215132562748483
+77,Hourly Cost: 300
+78,Total Operating Cost: 987543.6778524445

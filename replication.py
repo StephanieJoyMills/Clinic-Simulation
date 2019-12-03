@@ -1,9 +1,11 @@
+import simulation
 #IMPORTS
 import random #ability to generate random numbers
 import simpy #for simulation features
 import math #abilitity to run mathematical calculations
 from functools import partial, wraps
 import pandas as pd #required to export to csv
+import csv
 
 #RANDOM_SEED = 720 #set seed for randomization
 IAT_MIN = 8 #minimum interarrival time
@@ -15,6 +17,7 @@ global patients_arrived
 patients_arrived = 0 #initally 0 patients in clinic
 
 shift = {}
+env = None
 
 # DEFINE OUR PROBABILITIES
 #probability of balking
@@ -69,16 +72,6 @@ ser_referral = { #CDF
     "imaging": 0.2,
     "lab": 0.45,
     "dep": 1
-}
-
-#General Staff schedule
-staff_schedule = {
-    # 8-12, 12-16, 16-20 hours
-    "doctor":        [1, 1, 1],
-    "nurse":         [2, 2, 2],
-    "imaging_tech":  [1, 1, 1],
-    "lab_tech":      [1, 1, 1],
-    "registration":  [1, 1, 1],
 }
 
 #Number of hospital stations available
@@ -595,7 +588,8 @@ def get_index_by_time(time):
     return {"week_day_index": week_day_index, "day_index": day_index}
 
 
-def setup(env):
+def setup(env, staff_schedule):
+    print(staff_schedule)
     """Keep creating workers approx. every ``IAT`` minutes +-1 IAT_range ."""
     global patients_arrived
     patient_timeouts = {
@@ -720,148 +714,12 @@ def get_arrival_times():
 
 #FUNCTION TO PRINT STATS TO THE CONSOLE AND CSV
 def printStats():
-    time_until_treatment = { 
-    "em_ser": 0, 
-    "em_mod": 0,
-    "img_in": 0,
-    "img_out": 0,
-    "lab_in": 0,
-    "lab_out": 0,
-    }
-
-    time_until_registration = { 
-    "em_ser": 0, 
-    "em_mod": 0,
-    "img_in": 0,
-    "img_out": 0,
-    "lab_in": 0,
-    "lab_out": 0,
-    }
-
-    service_time = { 
-    "em_ser": 0, 
-    "em_mod": 0,
-    "img_in": 0,
-    "img_out": 0,
-    "lab_in": 0,
-    "lab_out": 0,
-    }
-
-    num_patients = { 
-    "em_ser": 0, 
-    "em_mod": 0,
-    "img_in": 0,
-    "img_out": 0,
-    "lab_in": 0,
-    "lab_out": 0,
-    }
-
-    print("Patient Statistics: ")
-    for patient in patientStats:
-        if (patient.serviceTime != None):
-            num_patients[patient.purpose] = num_patients[patient.purpose] + 1
-            print("\tPatient ID: {}".format(patient.id))
-            print("\tPatient type: {}".format(patient.purpose))
-            print("\tTime until treatment: {}".format(patient.treatmentWaitTime))
-            print("\tTime until registration: {}".format(patient.registrationWaitTime))
-            print("\tTotal service time: {} \n".format(patient.serviceTime))
-            VAT[patient.purpose][0] = VAT[patient.purpose][0] + patient.treatmentTime
-            VAT[patient.purpose][1] = VAT[patient.purpose][1] + patient.serviceTime
-            time_until_treatment[patient.purpose] = time_until_treatment[patient.purpose] + patient.treatmentWaitTime
-            service_time[patient.purpose] = service_time[patient.purpose] + patient.serviceTime
-            if (patient.purpose != "em_ser"):
-                time_until_registration[patient.purpose] = time_until_registration[patient.purpose] + patient.registrationWaitTime
-
-    dfToPrint = pd.DataFrame(data = None, columns = ['Event List']) #create df to append to    
-    print("Patient Type Statistics: ")
-    for purpose, value in VAT.items():
-        print("\tPatient Type: {}".format(purpose))
-        dfToPrint = dfToPrint.append({'Event List': "Patient Type: {}".format(purpose)}, ignore_index = True)
-        if ("in" not in purpose):
-            vat = value[0]/value[1]
-        else:
-            vat = value
-
-        print("\t% VAT: {}".format(vat))
-        dfToPrint = dfToPrint.append({'Event List': "% VAT: {}".format(vat)}, ignore_index = True)
-
-        if (num_patients[purpose] > 0):
-            print("\t% of balks: {}".format(balkingStats[purpose]/num_patients[purpose]))
-            dfToPrint = dfToPrint.append({'Event List': "% of balks: {}".format(balkingStats[purpose]/num_patients[purpose])}, ignore_index = True)
-
-            print("\t% of reneges: {}".format(renegingStats[purpose]/num_patients[purpose]))
-            dfToPrint = dfToPrint.append({'Event List': "% of reneges: {}".format(renegingStats[purpose]/num_patients[purpose])},
-                 ignore_index = True)
-
-            print("\tAvg time until registration: {}".format(time_until_registration[purpose]/ num_patients[purpose]))
-            dfToPrint = dfToPrint.append({'Event List': "Avg time until registration: {}"
-                .format(time_until_registration[purpose]/ num_patients[purpose])}, ignore_index = True)
-
-            print("\tAvg time until treatment: {}".format(time_until_treatment[purpose]/ num_patients[purpose]))
-            dfToPrint = dfToPrint.append({'Event List': "Avg time until treatment: {}".
-                format(time_until_treatment[purpose]/ num_patients[purpose]) }, ignore_index = True)
-
-            print("\tAvg total service time: {}\n".format(service_time[purpose] / num_patients[purpose]))
-            dfToPrint = dfToPrint.append({'Event List': "Avg total service time: {}".
-                format(service_time[purpose] / num_patients[purpose])}, ignore_index = True)
-
-        else: #num_patients for a given purpose (ED )
-            print("\t Statistics irrelevant and not considered")
-            dfToPrint = dfToPrint.append({'Event List': "Statistics irrelevant and not considered"}, ignore_index = True)
-
-    print()
-    print("Total Clinic Operating Time: {}\n".format(operatingTime))
-    dfToPrint = dfToPrint.append({'Event List': "Total Clinic Operating Time: {}".format(operatingTime)}, ignore_index = True)
-
-    totalCost = 0
-    
-    print("Staff Statistics: ")
-    dfToPrint = dfToPrint.append({'Event List': "Staff Statistics:".format(operatingTime)}, ignore_index = True)
-
+    avgUtil = 0
     for staff, value in staffUtilTime.items():
-        print("\tStaff: {}".format(staff))
-        dfToPrint = dfToPrint.append({'Event List': "Staff: {}".format(staff)}, ignore_index = True)
+        avgUtil = avgUtil + value
+    return avgUtil/5
 
-        print("\tTime: {}".format(value))
-        dfToPrint = dfToPrint.append({'Event List': "Time: {}".format(value)}, ignore_index = True)
-
-        print("\t% Util: {}".format(value / operatingTime))
-        dfToPrint = dfToPrint.append({'Event List': "% Util: {}".format(value / operatingTime)}, ignore_index = True)
-
-        print("\tHourly Cost: {}".format(costs[staff]))
-        dfToPrint = dfToPrint.append({'Event List': "Hourly Cost: {}".format(costs[staff])}, ignore_index = True)
-
-        cost = value / 60 * costs[staff]
-        totalCost = totalCost + cost
-        print("\tCost: {}\n".format(cost))
-        dfToPrint = dfToPrint.append({'Event List': "Cost: {}\n".format(cost)}, ignore_index = True)
-
-    print("Facilities Statistics: ")
-    dfToPrint = dfToPrint.append({'Event List': "Facilities Statistics: "}, ignore_index = True)
-
-    for facility, value in roomUtilTime.items():
-        print("\tFacility: {}".format(facility))
-        dfToPrint = dfToPrint.append({'Event List': "Facility: {}".format(facility)}, ignore_index = True)
-
-        print("\tTime: {}".format(value))
-        dfToPrint = dfToPrint.append({'Event List': "Time: {}".format(value)}, ignore_index = True)
-
-        print("\t% Util: {}".format(value / operatingTime))
-        dfToPrint = dfToPrint.append({'Event List': "% Util: {}".format(value / operatingTime)}, ignore_index = True)
-
-        print("\tHourly Cost: {}\n".format(hourly_room_cost[facility]))
-        dfToPrint = dfToPrint.append({'Event List': "Hourly Cost: {}".format(hourly_room_cost[facility])}, ignore_index = True)
-
-        cost = value / 60 * hourly_room_cost[facility]
-        totalCost = totalCost + cost
-
-    print("Total Operating Cost: {}\n".format(totalCost))
-    dfToPrint = dfToPrint.append({'Event List': "Total Operating Cost: {}".format(totalCost)}, ignore_index = True)
-
-    #UPDATE THE OUTPUT FILE NAME HERE:
-    dfToPrint.to_csv('GeneralOutput1.csv')
-
-def getCost():
+def getCost(staff_schedule):
     staffCost = 0
     for staff, rate in staff_schedule.items():
         cost = sum(rate) / 3
@@ -874,27 +732,33 @@ def getCost():
         roomCost = roomCost + value
 
     totalCost = roomCost + staffCost
+    return totalCost
 
     print("Costs: ")
     print("\tStaff Cost: {}".format(staffCost))
     print("\tRoom Cost: {}".format(roomCost))
     print("\tTotal Cost: {}\n".format(totalCost))
 
-if __name__ == '__main__':
+def runSimulation(staff_schedule):
+    global env 
+
     # Create an environment
     #random.seed(RANDOM_SEED)
     env = simpy.Environment(initial_time=60*8)
     
 
     # Set-up and Execute!
-    env.process(setup(env))
+    env.process(setup(env, staff_schedule))
     RUNWEEKS = 4
     RUNDAYS = 4
     RUNHOURS = 4
     RUNMINUTES = 4
+    
 
     env.run(until = RUNWEEKS*10080 + RUNDAYS* 1440 + RUNHOURS*60 + RUNMINUTES)#100000) #DURATION OF SIMULATION RUNTIME IN MINUTES
-    getCost()
+    cost = getCost(staff_schedule)
+    util = printStats()
+    return [cost, util]
     # printStats()
 
 #end file
@@ -921,6 +785,48 @@ if __name__ == '__main__':
 # 
 
 
+def run_staff_schedules(max):
+    for d1 in range(1, max):
+        for n1 in range(1, max):
+            for i1 in range(1, max):
+                for l1 in range(1, max):
+                    for r1 in range(1, max):
+                        for d2 in range(1, max):
+                            for n2 in range(1, max):
+                                for i2 in range(1, max):
+                                    for l2 in range(1, max):
+                                        for r2 in range(1, max):
+                                            for d3 in range(1, max):
+                                                for n3 in range(1, max):
+                                                    for i3 in range(1, max):
+                                                        for l3 in range(1, max):
+                                                            for r3 in range(1, max):
+                                                                avgCost = [0,0]
+                                                                replications = 2
+                                                                for i in range(replications):
+                                                                    staff_schedule = {
+                                                                        "doctor":        [d1, d2, d3],
+                                                                        "nurse":         [n1, n2, n3],
+                                                                        "imaging_tech":  [i1, i2, i3],
+                                                                        "lab_tech":      [l1, l2, l3],
+                                                                        "registration":  [r1, r2, r3],
+                                                                    }
+                                                                    res = runSimulation(staff_schedule)
+                                                                    avgCost = [avgCost[0] + res[0], avgCost[1] + res[1]]
+                                                                final = [avgCost[0]/replications, avgCost[1]/replications]
+                                      
+                                                                final.append( staff_schedule)
+                                                                writeAvg( "q1", final)
+
+                                                                  
 
 
+def writeAvg(file_name, avg):
+    with open(file_name + '.csv', 'a') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',')
+        writer.writerow([avg])
+
+if __name__ == '__main__':
+    max = 10
+    run_staff_schedules(max)
 
