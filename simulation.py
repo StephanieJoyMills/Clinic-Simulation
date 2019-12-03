@@ -5,7 +5,7 @@ import math #abilitity to run mathematical calculations
 from functools import partial, wraps
 import pandas as pd #required to export to csv
 
-RANDOM_SEED = 720 #set seed for randomization
+#RANDOM_SEED = 720 #set seed for randomization
 IAT_MIN = 8 #minimum interarrival time
 IAT_MAX = 16 #maximum interarrival time
 SIM_TIME = 1997200 #time of the simulation
@@ -859,12 +859,12 @@ def printStats():
     dfToPrint = dfToPrint.append({'Event List': "Total Operating Cost: {}".format(totalCost)}, ignore_index = True)
 
     #UPDATE THE OUTPUT FILE NAME HERE:
-    dfToPrint.to_csv(r'C:\Users\Hayes\Desktop\333 project\Clinic-Simulation\OutputNumber4444.csv')
+    dfToPrint.to_csv('GeneralOutput1.csv')
 
 
 if __name__ == '__main__':
     # Create an environment
-    random.seed(RANDOM_SEED)
+    #random.seed(RANDOM_SEED)
     env = simpy.Environment(initial_time=60*8)
 
     # Set-up and Execute!
@@ -878,6 +878,7 @@ if __name__ == '__main__':
 
     printStats()
 
+#end file
 # costs = {
 #     "doctor": 200,
 #     "nurse": 100,
