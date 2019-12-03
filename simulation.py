@@ -682,14 +682,14 @@ def setup(env):
 
         if (time_indexes["day_index"] == None):
             operatingTime =  operatingTime + env.now - temp
-            print("Clinic is now closed".format(time))
+            print('Clinic is now closed'.format(time))
             temp = env.now
             shift_change = [False, False, False]
             # clinic closes for 12 hours
             yield env.timeout(60 * 12)
             time = get_time(env)
             time_indexes = get_index_by_time(time)
-            print("Clinic is now open!".format(time))
+            print('Clinic is now open!'.format(time))
             temp = env.now - temp
             for key, value in patient_timeouts.items():
                 if value != None:
