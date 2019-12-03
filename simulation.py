@@ -218,9 +218,9 @@ class Registration(object):
         blockPrint()
         temp = self.env.now
         service_time = random.randrange(2, 5) #registration time varies uniformly between 3-8 minutes
-        print("Registration service started for patient %s." % (patient))
+        print('Registration service started for patient {} of type: {}   at time {}'.format(patient.id, patient.purpose,  get_time(env)))
         yield self.env.timeout(service_time) #timeout patient object for this amount of time
-        print("Registration service completed for patient %s." % (patient))
+        print('Registration service completed for patient {}      of type: {}   at time {}'.format(patient.id, patient.purpose,  get_time(env)))
         staffUtilTime["registration"] =  staffUtilTime["registration"] +  self.env.now - temp
 
 
@@ -673,7 +673,7 @@ def setup(env):
             shift_change[0] = True
             patient_timeouts = new_arrival(patient_timeouts, env)
         elif (time_indexes["day_index"] == 1 and shift_change[1] == False):
-            print("Second shift change at {}".format(time))
+            print('Second shift change at {}'.format(time))
             registration = Registration(env, staff_schedule["registration"][1])
             ed = ED(env, staff_schedule["nurse"]
                     [1], staff_schedule["doctor"][1])
@@ -682,7 +682,7 @@ def setup(env):
             shift_change[1] = True
             patient_timeouts = new_arrival(patient_timeouts, env)
         elif (time_indexes["day_index"] == 2 and shift_change[2] == False):
-            print("Third shift change at {}".format(time))
+            print('Third shift change at {}'.format(time))
             registration = Registration(env, staff_schedule["registration"][2])
             ed = ED(env, staff_schedule["nurse"]
                     [2], staff_schedule["doctor"][2])
@@ -884,6 +884,8 @@ def printStats():
         dfToPrint = dfToPrint.append({'Event List': "Time: {}".format(value)}, ignore_index = True)
 
         print("\t% Util: {}".format(value / operatingTime))
+        print(value)
+        print(operatingTime)
         dfToPrint = dfToPrint.append({'Event List': "% Util: {}".format(value / operatingTime)}, ignore_index = True)
 
         print("\tHourly Cost: {}".format(costs[staff]))
@@ -917,7 +919,7 @@ def printStats():
     dfToPrint = dfToPrint.append({'Event List': "Total Operating Cost: {}".format(totalCost)}, ignore_index = True)
 
     #UPDATE THE OUTPUT FILE NAME HERE:
-    dfToPrint.to_csv('GeneralOutput1.csv')
+    dfToPrint.to_csv(r'C:\Users\Hayes\Desktop\333 project\Clinic-Simulation\GeneralOutput10.csv', index= False)
 
 def getCost():
     staffCost = 0
