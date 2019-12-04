@@ -1,0 +1,85 @@
+Event List
+Patient Type: em_ser
+% VAT: 0.47758243676779594
+% of balks: 0.0
+% of reneges: 0.0
+Avg time until registration: 0.0
+Avg time until treatment: 9.662600883000012
+Avg total service time: 18.495934216333346
+Patient Type: em_mod
+% VAT: 0.5017133852046015
+% of balks: 0.0
+% of reneges: 0.0
+Avg time until registration: 0.517857142856978
+Avg time until treatment: 13.56000012256704
+Avg total service time: 30.25855051848741
+Patient Type: img_in
+% VAT: 126.21984795769595
+Statistics irrelevant and not considered
+Patient Type: img_out
+% VAT: 0.7380143562085629
+% of balks: 1.8837209302325582
+% of reneges: 0.0
+Avg time until registration: 0.9335548172759662
+Avg time until treatment: 4.696574136670871
+Avg total service time: 17.92683777898053
+Patient Type: lab_in
+% VAT: 74.37182001124893
+Statistics irrelevant and not considered
+Patient Type: lab_out
+% VAT: 0.522694774420743
+% of balks: 0.25225225225225223
+% of reneges: 0.0
+Avg time until registration: 1.3719433719435086
+Avg time until treatment: 5.989841938012153
+Avg total service time: 12.549290510580287
+Total Clinic Operating Time: 2880
+Staff Statistics:
+Staff: doctor
+Time: 1036.0
+% Util: 0.3597222222222222
+Hourly Cost: 200
+"Cost: 3453.333333333333
+"
+Staff: nurse
+Time: 745.0
+% Util: 0.2586805555555556
+Hourly Cost: 100
+"Cost: 1241.6666666666665
+"
+Staff: imaging_tech
+Time: 695.1211845770117
+% Util: 0.24136152242257353
+Hourly Cost: 90
+"Cost: 1042.6817768655176
+"
+Staff: lab_tech
+Time: 802.4706115663139
+% Util: 0.2786356290160812
+Hourly Cost: 80
+"Cost: 1069.960815421752
+"
+Staff: registration
+Time: 650.9999999999995
+% Util: 0.2260416666666665
+Hourly Cost: 40
+"Cost: 433.9999999999997
+"
+Facilities Statistics: 
+Facility: registration
+Time: 650.9999999999995
+% Util: 0.2260416666666665
+Hourly Cost: 50
+Facility: ED
+Time: 805.8709661146058
+% Util: 0.2798163076786826
+Hourly Cost: 500
+Facility: imaging
+Time: 695.1211845770117
+% Util: 0.24136152242257353
+Hourly Cost: 400
+Facility: lab
+Time: 982.4238191502063
+% Util: 0.3411193816493772
+Hourly Cost: 300
+Total Operating Cost: 24045.994302840092

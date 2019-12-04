@@ -661,7 +661,6 @@ def setup(env):
 
         #SHIFT BETWEEN [8 - 12)
         if (time_indexes["day_index"] == 0 and shift_change[0] == False):
-            print("HERE")
             closed = False
             print(patient_timeouts)
             print("First shift staffing at {}".format(time))
